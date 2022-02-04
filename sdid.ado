@@ -1,7 +1,7 @@
 *! sdid: Synthetic Difference in Difference
-*! Version 1.0.1 January 25, 2022
-*! Author: Clarke Damian, Pailañir Daniel
-*! dclarke@fen.uchile.cl, dpailanir@fen.uchile.cl
+*! Version 0.1.0 January 25, 2022
+*! Author: Pailañir Daniel, Clarke Damian
+*! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
 cap program drop sdid
 program sdid
