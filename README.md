@@ -7,5 +7,5 @@ Synthetic Difference in Difference :  Stata package
 + T: Time variable (numeric)
 + D: Dummy of treatement (numeric)
 
-### Syntax : 
+## Syntax : 
 sdid Y S T D
