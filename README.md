@@ -9,3 +9,6 @@ Synthetic Difference in Difference :  Stata package
 
 ## Syntax : 
 sdid Y S T D
+
+### References : 
+Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, 2019.
