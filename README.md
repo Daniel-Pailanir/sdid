@@ -1,14 +1,14 @@
 # sdid
 Synthetic Difference in Difference :  Stata package
 
-## Inputs :
+## Inputs
 + Y: Outcome variable (numeric)
 + S: Unit variable (numeric)
 + T: Time variable (numeric)
 + D: Dummy of treatement (numeric)
 
-## Syntax : 
+## Syntax
 sdid Y S T D
 
-### References : 
+### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, 2019.
