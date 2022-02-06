@@ -10,7 +10,9 @@ Synthetic Difference in Difference :  Stata package
 ## Syntax
 sdid Y S T D, *seed() breps()*
 
-+ *_seed()_* and *_breps()_* option, are required for bootstrap standard error.
+```
+*_seed()_* and *_breps()_* option, are required for bootstrap standard error.
+```
 
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, 2019.
