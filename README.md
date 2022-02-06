@@ -11,7 +11,7 @@ Synthetic Difference in Difference :  Stata package
 sdid Y S T D, *seed() breps()*
 
 ```
-*_seed()_* and *_breps()_* option, are required for bootstrap standard error.
+seed() and breps() options, are required for bootstrap standard error.
 ```
 
 ### References
