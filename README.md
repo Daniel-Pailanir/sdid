@@ -1,5 +1,5 @@
 # sdid
-Synthetic Difference in Difference :  Stata package
+Synthetic Difference in Difference: Stata package (Beta version)
 
 ## Inputs
 + Y: Outcome variable (numeric)
