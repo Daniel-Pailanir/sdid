@@ -8,9 +8,9 @@ Synthetic Difference in Difference :  Stata package
 + D: Dummy of treatement (numeric)
 
 ## Syntax
-sdid Y S T D, [seed() breps()]
+sdid Y S T D, *seed() breps()*
 
-+ *seed()* and *breps()* option, are required for bootstrap standard error.
++ *_seed()_* and *_breps()_* option, are required for bootstrap standard error.
 
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, 2019.
