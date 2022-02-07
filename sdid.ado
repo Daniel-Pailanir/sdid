@@ -144,8 +144,8 @@ mkmat promt, matrix(b_l)
 mkmat t`Tmin'-t`T0', matrix(A_l)
 local col_l = colsof(A_l)
 local row_l = rowsof(A_l)
-mata : A_l = st_matrix("A_l")
-mata : b_l = st_matrix("b_l")
+mata: A_l = st_matrix("A_l")
+mata: b_l = st_matrix("b_l")
 
 *Matrix A & b : Omega
 clear
@@ -180,167 +180,38 @@ mata : lambda_l = J(1, `col_l', 1 / `col_l')
 *-------------------------------------------------------*
 *LAMBDA
 *-------------------------------------------------------*
-local t=0
 local maxIter=100
 local mindecrease=(1e-5 * `sig')^2
-mata : vals_l = J(1, `maxIter', .)
-local dd=1
 
-while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-	local ++t    
-    mata : Ax = A_l * lambda_l'	
-    mata : hg = (Ax - b_l)' * A_l + `eta_l' * lambda_l
-    mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))	
-    mata : st_local("i", strofreal(mini[1,1]))
-    mata : dx = -lambda_l
-    mata : dx[1,`i'] = 1 - lambda_l[1,`i']
-    mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-    if `v'==0 {
-        mata : lambda_l = lambda_l
-        mata : err = (A_l,b_l) * (lambda_l' \ -1)
-        mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-    }
-	else {
-        mata : derr = A_l[1..`row_l',`i'] - Ax
-        mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_l' * (dx * dx'))
-        mata : st_local("step", strofreal(step))
-        local conststep = min(1, max(0, `step'))
-        mata : lambda_l = lambda_l + `conststep' * dx  
-        mata : err = (A_l, b_l) * (lambda_l' \ -1)
-        mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-		if `t'>1 {
-            mata : dd = vals_l[1, `t'-1] - vals_l[1, `t']
-            mata : st_local("dd", strofreal(dd))
-        }
-    }
-}
+mata: lambda_l=lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', `maxIter', `mindecrease')
 
 mata : st_local("maxlambda_l", strofreal(max(lambda_l)))
 local cut = `maxlambda_l' / 4
 mata : lambda_l = mm_cond(lambda_l :<=`cut', 0, lambda_l) //moremata install, creo
 mata : lambda_l = lambda_l :/ sum(lambda_l)
 
-local t=0
 local maxIter=10000
 local mindecrease=(1e-5 * `sig')^2
-mata : vals_l = J(1, `maxIter', .)
-local dd=1
 
-while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-	local ++t    
-    mata : Ax = A_l * lambda_l'	
-    mata : hg = (Ax - b_l)' * A_l + `eta_l' * lambda_l
-    mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))	
-    mata : st_local("i", strofreal(mini[1,1]))
-    mata :  dx = -lambda_l
-    mata :  dx[1,`i'] = 1 - lambda_l[1,`i']
-    mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-    if `v'==0 {
-        mata : lambda_l = lambda_l
-        mata : err = (A_l,b_l) * (lambda_l' \ -1)
-        mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-    }
-	else {
-        mata : derr = A_l[1..`row_l',`i'] - Ax
-        mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_l' * (dx * dx'))
-        mata : st_local("step", strofreal(step))
-        local conststep = min(1, max(0, `step'))
-        mata : lambda_l = lambda_l + `conststep' * dx  
-        mata : err = (A_l, b_l) * (lambda_l' \ -1)
-    	mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-		
-		if `t'>1 {
-            mata : dd = vals_l[1, `t'-1] - vals_l[1, `t']
-            mata : st_local("dd", strofreal(dd))
-		}
-    }
-}
+mata: lambda_l=lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', `maxIter', `mindecrease')
 
 *-------------------------------------------------------*
 *OMEGA
 *-------------------------------------------------------*
-local t=0
 local maxIter=100
 local mindecrease=(1e-5 * `sig')^2
-mata : vals_o = J(1, `maxIter', .)
-local dd=1
 
-while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-	local ++t    
-    mata : Ax = A_o * lambda_o'	
-    mata : hg = (Ax - b_o)' * A_o + `eta_o' * lambda_o
-    mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))	
-    mata : st_local("i", strofreal(mini[1,1]))
-    mata :  dx = -lambda_o
-    mata :  dx[1,`i'] = 1 - lambda_o[1,`i']
-    mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-    if `v'==0 {
-        mata : lambda_o = lambda_o
-        mata : err = (A_o,b_o) * (lambda_o' \ -1)
-        mata : vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-    }
-	else {
-        mata : derr = A_o[1..`row_o',`i'] - Ax
-        mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_o' * (dx * dx'))
-        mata : st_local("step", strofreal(step))
-        local conststep = min(1, max(0, `step'))
-        mata :  lambda_o = lambda_o + `conststep' * dx  
-        mata :  err = (A_o, b_o) * (lambda_o' \ -1)
-    	mata :  vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-
-		if `t'>1 {
-            mata : dd = vals_o[1, `t'-1] - vals_o[1, `t']
-            mata : st_local("dd", strofreal(dd))
-		}
-		
-    }
-}
+mata: lambda_o=lambda(A_o, b_o, lambda_o, `eta_o', `ZetaOmega', `maxIter', `mindecrease')
 
 mata : st_local("maxlambda_o", strofreal(max(lambda_o)))
 local cut = `maxlambda_o' / 4
-mata : lambda_o = mm_cond(lambda_o :<=`cut', 0, lambda_o) //moremata install
+mata : lambda_o = mm_cond(lambda_o :<=`cut', 0, lambda_o)
 mata : lambda_o = lambda_o :/ sum(lambda_o)
 
-local t=0
 local maxIter=10000
 local mindecrease=(1e-5 * `sig')^2
-mata : vals_o = J(1, `maxIter', .)
-local dd=1
 
-while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-	local ++t    
-    mata : Ax = A_o * lambda_o'	
-    mata : hg = (Ax - b_o)' * A_o + `eta_o' * lambda_o
-    mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))	
-    mata : st_local("i", strofreal(mini[1,1]))
-    mata :  dx = -lambda_o
-    mata :  dx[1,`i'] = 1 - lambda_o[1,`i']
-    mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-    if `v'==0 {
-        mata : lambda_o = lambda_o
-        mata : err = (A_o,b_o) * (lambda_o' \ -1)
-        mata : vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-    }
-	else {
-        mata : derr = A_o[1..`row_o',`i'] - Ax
-        mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_o' * (dx * dx'))
-        mata : st_local("step", strofreal(step))
-        local conststep = min(1, max(0, `step'))
-        mata :  lambda_o = lambda_o + `conststep' * dx  
-        mata :  err = (A_o, b_o) * (lambda_o' \ -1)
-    	mata :  vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-
-		if `t'>1 {
-            mata : dd = vals_o[1, `t'-1] - vals_o[1, `t']
-            mata : st_local("dd", strofreal(dd))
-		}
-		
-    }
-}
+mata: lambda_o=lambda(A_o, b_o, lambda_o, `eta_o', `ZetaOmega', `maxIter', `mindecrease')
 
 *save weights in e(r)
 mata: st_matrix("lambda", lambda_l')
@@ -353,6 +224,8 @@ ereturn matrix omega  omega
 *-------------------------------------------------------*
 mata : tau = (-lambda_o, J(1, `Ntr', 1/`Ntr')) * Yall[1..`N',1..`Tobs'] * (-lambda_l, J(1, `Tpost', 1/`Tpost'))'
 mata : st_local("tau", strofreal(tau))
+
+mata:tau
 
 *restore original data
 use `data', clear
@@ -508,165 +381,38 @@ while `b'<=`B' {
     *-------------------------------------------------------*
     *LAMBDA
     *-------------------------------------------------------*
-    local t=0
     local maxIter=100
     local mindecrease=(1e-5 * `sig')^2
-    mata : vals_l = J(1, `maxIter', .)
-    local dd=1
 
-    while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-    	local ++t    
-        mata : Ax = A_l * lambda_l'	
-        mata : hg = (Ax - b_l)' * A_l + `eta_l' * lambda_l
-        mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))	
-        mata : st_local("i", strofreal(mini[1,1]))
-        mata : dx = -lambda_l
-        mata : dx[1,`i'] = 1 - lambda_l[1,`i']
-        mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-    if `v'==0 {
-            mata : lambda_l = lambda_l
-            mata : err = (A_l,b_l) * (lambda_l' \ -1)
-            mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-        }
-    	else {
-            mata : derr = A_l[1..`row_l',`i'] - Ax
-            mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_l' * (dx * dx'))
-            mata : st_local("step", strofreal(step))
-            local conststep = min(1, max(0, `step'))
-            mata : lambda_l = lambda_l + `conststep' * dx  
-            mata : err = (A_l, b_l) * (lambda_l' \ -1)
-            mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-	    	if `t'>1 {
-                mata : dd = vals_l[1, `t'-1] - vals_l[1, `t']
-                mata : st_local("dd", strofreal(dd))
-            }
-        }
-    }
+    mata: lambda_l=lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', `maxIter', `mindecrease')
 
     mata : st_local("maxlambda_l", strofreal(max(lambda_l)))
     local cut = `maxlambda_l' / 4
     mata : lambda_l = mm_cond(lambda_l :<=`cut', 0, lambda_l)
     mata : lambda_l = lambda_l :/ sum(lambda_l)
 
-    local t=0
     local maxIter=10000
     local mindecrease=(1e-5 * `sig')^2
-    mata : vals_l = J(1, `maxIter', .)
-    local dd=1
 
-    while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-	    local ++t    
-        mata : Ax = A_l * lambda_l'	
-        mata : hg = (Ax - b_l)' * A_l + `eta_l' * lambda_l
-        mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))		
-        mata : st_local("i", strofreal(mini[1,1]))
-        mata : dx = -lambda_l
-        mata : dx[1,`i'] = 1 - lambda_l[1,`i']
-        mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-        if `v'==0 {
-            mata : lambda_l = lambda_l
-            mata : err = (A_l,b_l) * (lambda_l' \ -1)
-            mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-        }
-	    else {
-            mata : derr = A_l[1..`row_l',`i'] - Ax
-            mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_l' * (dx * dx'))
-            mata : st_local("step", strofreal(step))
-            local conststep = min(1, max(0, `step'))
-            mata : lambda_l = lambda_l + `conststep' * dx  
-            mata : err = (A_l, b_l) * (lambda_l' \ -1)
-        	mata : vals_l[1, `t'] = `ZetaLambda'^2 * (lambda_l * lambda_l') + (err' * err) / `row_l'
-	
-	    	if `t'>1 {
-                mata : dd = vals_l[1, `t'-1] - vals_l[1, `t']
-               mata : st_local("dd", strofreal(dd))
-		    }
-        }
-    }
+    mata: lambda_l=lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', `maxIter', `mindecrease')
 
     *-------------------------------------------------------*
     *OMEGA
     *-------------------------------------------------------*
-    local t=0
     local maxIter=100
     local mindecrease=(1e-5 * `sig')^2
-    mata : vals_o = J(1, `maxIter', .)
-    local dd=1
 
-    while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-	    local ++t    
-        mata : Ax = A_o * lambda_o'	
-        mata : hg = (Ax - b_o)' * A_o + `eta_o' * lambda_o
-        mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))		
-        mata : st_local("i", strofreal(mini[1,1]))
-        mata :  dx = -lambda_o
-        mata : dx[1,`i'] = 1 - lambda_o[1,`i']
-        mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-        if `v'==0 {
-            mata : lambda_o = lambda_o
-            mata : err = (A_o,b_o) * (lambda_o' \ -1)
-            mata : vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-        }
-    	else {
-            mata : derr = A_o[1..`row_o',`i'] - Ax
-            mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_o' * (dx * dx'))
-            mata : st_local("step", strofreal(step))
-            local conststep = min(1, max(0, `step'))
-            mata :  lambda_o = lambda_o + `conststep' * dx  
-            mata :  err = (A_o, b_o) * (lambda_o' \ -1)
-        	mata :  vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-
-		    if `t'>1 {
-                mata : dd = vals_o[1, `t'-1] - vals_o[1, `t']
-                mata : st_local("dd", strofreal(dd))
-		    }
-        }
-    }
+    mata: lambda_o=lambda(A_o, b_o, lambda_o, `eta_o', `ZetaOmega', `maxIter', `mindecrease')
 
     mata : st_local("maxlambda_o", strofreal(max(lambda_o)))
     local cut = `maxlambda_o' / 4
     mata : lambda_o = mm_cond(lambda_o :<=`cut', 0, lambda_o)
     mata : lambda_o = lambda_o :/ sum(lambda_o)
 
-    local t=0
     local maxIter=10000
     local mindecrease=(1e-5 * `sig')^2
-    mata : vals_o = J(1, `maxIter', .)
-    local dd=1
 
-    while (`t'<`maxIter' & (`t'<2 | `dd'>`mindecrease')) {
-	    local ++t    
-        mata : Ax = A_o * lambda_o'	
-        mata : hg = (Ax - b_o)' * A_o + `eta_o' * lambda_o
-        mata : mini = select((1..cols(hg)), colmin(hg :== min(hg)))		
-        mata : st_local("i", strofreal(mini[1,1]))
-		mata :  dx = -lambda_o
-        mata :  dx[1,`i'] = 1 - lambda_o[1,`i']
-        mata : st_local("v", strofreal(abs(min(dx))+abs(max(dx))))
-
-        if `v'==0 {
-            mata : lambda_o = lambda_o
-            mata : err = (A_o,b_o) * (lambda_o' \ -1)
-            mata : vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-        }
-	    else {
-            mata : derr = A_o[1..`row_o',`i'] - Ax
-            mata : step = -(hg) * dx' :/ ((derr' * derr) + `eta_o' * (dx * dx'))
-            mata : st_local("step", strofreal(step))
-            local conststep = min(1, max(0, `step'))
-            mata :  lambda_o = lambda_o + `conststep' * dx  
-            mata :  err = (A_o, b_o) * (lambda_o' \ -1)
-    	    mata :  vals_o[1, `t'] = `ZetaOmega'^2 * (lambda_o * lambda_o') + (err' * err) / `row_o'
-
-		    if `t'>1 {
-                mata : dd = vals_o[1, `t'-1] - vals_o[1, `t']
-                mata : st_local("dd", strofreal(dd))
-		    }
-        }
-    }
+    mata: lambda_o=lambda(A_o, b_o, lambda_o, `eta_o', `ZetaOmega', `maxIter', `mindecrease')
 
     *-------------------------------------------------------*
     *TAU
@@ -695,4 +441,48 @@ use `data', clear
 
 end
 
+mata:
+function lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease)
+
+{
+
+row = rows(A)
+col = cols(A)
+vals = J(1, maxIter, .)
+t=0
+dd=1
+
+while (t<maxIter & (t<2 | dd>mindecrease)) {
+    t=t+1    
+    Ax = A * x'	
+    hg = (Ax - b)' * A + eta * x
+    mini = select((1..cols(hg)), colmin(hg :== min(hg)))	
+    i = mini[1,1]
+    dx = -x
+    dx[1,i] = 1 - x[1,i]
+    v = abs(min(dx))+abs(max(dx))
+
+    if (v==0) {
+        x = x
+        err = (A, b) * (x' \ -1)
+        vals[1,t] = zeta^2 * (x * x') + (err' * err) / row
+    }
+    else {
+        derr = A[1..row,i] - Ax
+        step = -(hg) * dx' :/ ((derr' * derr) + eta * (dx * dx'))
+        conststep = min((1, max((0, step)))) 
+        x = x + conststep * dx  
+        err = (A, b) * (x' \ -1)
+        vals[1,t] = zeta^2 * (x * x') + (err' * err) / row
+        
+        if (t>1) {
+            dd = vals[1,t-1] - vals[1,t]
+        }
+    }
+}
+
+return(x)
+
+}
+end
 			
