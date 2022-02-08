@@ -12,9 +12,13 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 
 ## Syntax
 ```
-sdid Y S T D, seed() breps()
+sdid Y S T D, vce() seed() reps()
 ```
-seed() and breps() options, are required for bootstrap standard error.
++ vce(): bootstrap and placebo (trial version) standard error. 
++ see(): seed define for pseudo-random numbers.
++ reps(): repetitions for bootstrap and placebo se.
+
+**_NOTE:_**  reps() option are required for bootstrap and placebo standard error.
 
 
 ### References
