@@ -11,7 +11,7 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 + D: Dummy of treatement (numeric)
 
 ## Syntax
-```
+```s
 sdid Y S T D, vce(method) seed() reps()
 ```
 + vce(): bootstrap and placebo (trial version) standard error. 
