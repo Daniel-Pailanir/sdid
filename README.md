@@ -15,7 +15,7 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 sdid Y S T D, vce(method) seed() reps()
 ```
 + vce(): bootstrap and placebo (trial version) standard error. 
-+ see(): seed define for pseudo-random numbers.
++ seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
 
 **_NOTE:_**  reps() option are required for bootstrap and placebo standard error.
