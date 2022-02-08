@@ -12,7 +12,7 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 
 ## Syntax
 ```
-sdid Y S T D, vce(type) seed() reps()
+sdid Y S T D, vce(method) seed() reps()
 ```
 + vce(): bootstrap and placebo (trial version) standard error. 
 + see(): seed define for pseudo-random numbers.
