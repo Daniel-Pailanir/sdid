@@ -8,7 +8,7 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 + Y: Outcome variable (numeric)
 + S: Unit variable (numeric)
 + T: Time variable (numeric)
-+ D: Dummy of treatement (numeric)
++ D: Dummy of treatement, equal to 1 if units are treated (numeric)
 
 ## Syntax
 ```s
