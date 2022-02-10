@@ -8,13 +8,17 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 + Y: Outcome variable (numeric)
 + S: Unit variable (numeric)
 + T: Time variable (numeric)
-+ D: Dummy of treatement (numeric)
++ D: Dummy of treatement, equal to 1 if units are treated (numeric)
 
 ## Syntax
+```s
+sdid Y S T D, vce(method) seed() reps()
 ```
-sdid Y S T D, seed() breps()
-```
-seed() and breps() options, are required for bootstrap standard error.
++ vce(): bootstrap and placebo (trial version) standard error. 
++ seed(): seed define for pseudo-random numbers.
++ reps(): repetitions for bootstrap and placebo se.
+
+**_NOTE:_**  reps() option are required for bootstrap and placebo standard error.
 
 
 ### References
