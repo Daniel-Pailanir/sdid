@@ -8,7 +8,7 @@ program sdid, eclass
 version 13.0
 	
 #delimit ;
-    syntax varlist(min=4 numeric), vce(string)
+    syntax varlist(min=4 numeric), vce(string) adoption(string)
     [
     seed(integer 0)
     reps(integer 0)
@@ -16,9 +16,10 @@ version 13.0
     ;
 #delimit cr  
 
-*--------------------------------------------------------*
-*- Create some temporal variables and locals            -*
-*--------------------------------------------------------*
+*------------------------------------------------------------------------------*
+*ONE TIME ADOPTION
+*------------------------------------------------------------------------------*
+if "`adoption'"=="normal" {
 tokenize `varlist'
 tempvar id id2 diff tr
 egen `id' = group(`2')
@@ -56,7 +57,7 @@ di as text "{c BLC}{hline 26}{c BT}{hline 6}{c BRC}"
 *-------------------------------------------------------*
 *- Calculate \zeta                                     -*
 *-------------------------------------------------------*
-bys `id' : egen `tr' = mean(`4')
+bys `id': egen `tr' = mean(`4')
 qui replace `tr' = 1 if `tr'!=0
 local EtaOmega  = (`Ntr' * `Tpost')^(1/4)
 local EtaLambda = 1e-6
@@ -65,14 +66,12 @@ qui sum `diff' if `3'<=`T0' & `tr'==0
 local sig = r(sd)
 local ZetaOmega  = `EtaOmega'  * `sig' 
 local ZetaLambda = `EtaLambda' * `sig'
-
 *-------------------------------------------------------*
 *- Preparing data                                      -*
 *-------------------------------------------------------*
 *original data
 tempfile data
 qui save "`data'"
-
 qui levelsof `3', local(times)                 //local of all times
 qui levelsof `3' if `3'<=`T0', local(timespre) //local of pre times
 
@@ -118,7 +117,6 @@ forvalues t=`Tmin'/`T0' {
 
 qui drop if id>`N0' & id!=.
 mkmat _all, matrix(Y)
-
 *-------------------------------------------------------*
 *- Matrices for optimization                           -*
 *-------------------------------------------------------*
@@ -405,15 +403,15 @@ else if "`vce'"=="placebo" {
         *LAMBDA
         *----------------------------------------------------------------------*
         local mindec = (1e-5 * `sig')^2
-        mata: w_l = lambda(A_l[(ind2),1..`Tpre'], b_l[(ind2),1], lambda_l, `eta_l', `ZetaLambda', 100, `mindec')
+        mata: w_l = lambda(A_l[(ind2),.], b_l[(ind2),1], lambda_l, `eta_l', `ZetaLambda', 100, `mindec')
         mata: w_l = sspar(w_l)
-        mata: w_l = lambda(A_l[(ind2),1..`Tpre'], b_l[(ind2),1], w_l, `eta_l', `ZetaLambda', 10000, `mindec')
+        mata: w_l = lambda(A_l[(ind2),.], b_l[(ind2),1], w_l, `eta_l', `ZetaLambda', 10000, `mindec')
         *----------------------------------------------------------------------*
         *OMEGA
         *----------------------------------------------------------------------*
-        mata: w_o = lambda(A_o[1..`Tpre',(ind2)], b_o, lambda_o[1,(ind2)], `eta_o', `ZetaOmega', 100, `mindec')
+        mata: w_o = lambda(A_o[.,(ind2)], b_o, lambda_o[1,(ind2)], `eta_o', `ZetaOmega', 100, `mindec')
         mata: w_o = sspar(w_o)
-        mata: w_o = lambda(A_o[1..`Tpre',(ind2)], b_o, w_o, `eta_o', `ZetaOmega', 10000, `mindec')
+        mata: w_o = lambda(A_o[.,(ind2)], b_o, w_o, `eta_o', `ZetaOmega', 10000, `mindec')
         *----------------------------------------------------------------------*
         *TAU
         *----------------------------------------------------------------------*
@@ -428,7 +426,7 @@ else if "`vce'"=="placebo" {
 *------------------------------------------------------------------------------*
 *VCE : jackknife
 *------------------------------------------------------------------------------*
-if "`vce'"=="jackknife" {
+else if "`vce'"=="jackknife" {
     if (`Ntr'==1)==1 {
         di as err "It is not possible to do Jackknife se because there is only one treated unit"
         exit 198
@@ -446,6 +444,205 @@ di as text "{c TLC}{hline 16}{c TT}{hline 11}{c TRC}"
 di as text "{c |} {bf: tau}           {c |} " as result %9.5f `tau'  as text " {c |}"
 di as text "{c |} {bf: se bootstrap}  {c |} " as result %9.5f `se' as text " {c |}"
 di as text "{c BLC}{hline 16}{c BT}{hline 11}{c BRC}"
+}
+
+*------------------------------------------------------------------------------*
+*STAGGERED ADOPTION
+*------------------------------------------------------------------------------*
+else if "`adoption'"=="staggered" {
+    tokenize `varlist'
+    tempvar i m adoption trt
+    egen `i' = group(`2')
+    qui xtset `i' `3'
+    local Tmin = r(tmin) //t min
+    local T    = r(tmax) //t max
+    *Define treated periods
+    bys `2' `4': egen `m' = min(`3')
+    by  `2': egen `adoption' = max(`m')
+    qui by  `2': replace `adoption' = 0 if `adoption'==`Tmin'
+
+    qui levelsof `adoption' if `adoption'>0, local(trt)
+    qui tab `adoption' if `adoption'>0
+    local lenght = r(r) 
+    mata: results = J(`lenght', 6, .)
+
+*filter data and SDiD
+mata: i = 1
+foreach t of local trt {
+    preserve
+    tempvar id id2 diff tr post_treat
+    qui keep if `adoption'==`t' | `adoption'==0
+    qui sum `adoption'
+    scalar time=r(max)
+    gen `post_treat' = 0
+    qui replace `post_treat' = 1 if `3'>=`adoption' & `adoption'!=0
+    qui sum `post_treat' if `post_treat'==1
+    scalar obs=r(N)
+    *--------------------------------------------------------*
+    *- Create some temporal variables and locals            -*
+    *--------------------------------------------------------*
+    egen `id' = group(`2')
+    qui xtset `id' `3'
+    local N    = r(imax)      //number of units
+    qui tab `id' if `4'==1
+    local Ntr = r(r)         //number of treated units
+    local N0  = `N' - `Ntr'  //number of control units
+    qui tab `3' if `3'>=`t'
+    local Tpost  = r(r)             //number of post times
+    local T0     = `T'  - `Tpost'   //max time of control
+    local Tobs   = `T'  - `Tmin' +1 //number of times
+    local Tpre   = `T0' - `Tmin' +1 //number of pre times
+    local Ttrmin = `T0' + 1         //first year of treatment
+    *-------------------------------------------------------*
+    *- Calculate \zeta                                     -*
+    *-------------------------------------------------------*
+    bys `id': egen `tr' = mean(`4')
+    qui replace `tr' = 1 if `tr'!=0
+    local EtaOmega  = (`Ntr' * `Tpost')^(1/4)
+    local EtaLambda = 1e-6
+    qui gen `diff' = `1' - L.`1'
+    qui sum `diff' if `3'<=`T0' & `tr'==0
+    local sig = r(sd)
+    local ZetaOmega  = `EtaOmega'  * `sig' 
+    local ZetaLambda = `EtaLambda' * `sig'
+    *-------------------------------------------------------*
+    *- Preparing data                                      -*
+    *-------------------------------------------------------*
+    *original data
+    tempfile data
+    qui save "`data'"
+    qui levelsof `3', local(times)                 
+    qui levelsof `3' if `3'<=`T0', local(timespre) 
+    *matrix of control units
+    qui keep if `tr'==0
+    keep `1' `id' `3'
+    qui reshape wide `1', i(`id') j(`3')
+    mkmat _all, matrix(Y0)
+    *matrix of treated units
+    use `data', clear
+    qui keep if `tr'==1
+    keep `1' `id' `3'
+    qui reshape wide `1', i(`id') j(`3')
+    mkmat _all, matrix(Y1)
+    *matrix of control and treated units
+    matrix Y = (Y0 \ Y1) 
+    clear
+    qui svmat Y
+    drop Y1
+    gen id = _n
+    local i=2
+    foreach n of local times {
+        ren Y`i' t`n'
+        local ++i
+    }
+
+    *All data for estimator
+    mkmat _all, matrix(Yall)
+    mata: Yall = st_matrix("Yall")
+    egen promt = rowmean(t`Ttrmin'-t`T')
+    drop t`Ttrmin'-t`T'
+    local r=`N'+1
+    qui set obs `r'
+  
+    forvalues t=`Tmin'/`T0' {
+        qui sum     t`t' if id>`N0'
+        qui replace t`t' = r(mean) in `r'
+    }
+
+    qui drop if id>`N0' & id!=.
+    mkmat _all, matrix(Y)
+    *-------------------------------------------------------*
+    *- Matrices for optimization                           -*
+    *-------------------------------------------------------*
+    *Matrix A & b : Lambda 
+    clear
+    qui svmat Y, names(col)
+
+    local vr `timespre' promt
+    foreach t of local vr {
+        if "`t'"=="promt" local n ""
+        if "`t'"!="promt" local n "t"
+        qui sum `n'`t' if id<=`N0'
+        qui replace `n'`t' = `n'`t' - r(mean) 
+    }
+
+    qui keep in 1/`N0'
+    mkmat promt, matrix(b_l)
+    mkmat t`Tmin'-t`T0', matrix(A_l)
+    local col_l = colsof(A_l)
+    local row_l = rowsof(A_l)
+    mata: A_l = st_matrix("A_l")
+    mata: b_l = st_matrix("b_l")
+    *Matrix A & b : Omega
+    clear
+    qui svmat Y, names(col)
+    drop promt id
+    gen id = _n
+    qui reshape long t, i(id) j(a)
+    qui reshape wide t, i(a) j(id)
+    drop a
+
+    local max=`N0'+1
+    forvalues t=1/`max'  {
+        qui sum t`t'
+        qui replace t`t' = t`t' - r(mean)
+    }
+    mkmat t`max', matrix(b_o)
+    mkmat t1-t`N0', matrix(A_o)
+    local col_o = colsof(A_o)
+    local row_o = rowsof(A_o)
+    mata: A_o = st_matrix("A_o")
+    mata: b_o = st_matrix("b_o")
+
+    *eta value and omega vector
+    local eta_o = `row_o' * `ZetaOmega'^2
+    local eta_l = `row_l' * `ZetaLambda'^2
+
+    *eta value and lambda vector
+    mata: lambda_o = J(1, `col_o', 1 / `col_o')
+    mata: lambda_l = J(1, `col_l', 1 / `col_l')		
+    *--------------------------------------------------------------------------*
+    *LAMBDA
+    *--------------------------------------------------------------------------*
+    local mindecrease=(1e-5 * `sig')^2
+    mata: lambda_l = lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', 100, `mindecrease')
+    mata: lambda_l = sspar(lambda_l)
+    mata: lambda_l = lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', 10000, `mindecrease')
+    *------------------------------------------------------------------------------*
+    *OMEGA
+    *------------------------------------------------------------------------------*
+    mata: lambda_o = lambda(A_o, b_o, lambda_o, `eta_o', `ZetaOmega', 100, `mindecrease')
+    mata: lambda_o = sspar(lambda_o)
+    mata: lambda_o = lambda(A_o, b_o, lambda_o, `eta_o', `ZetaOmega', 10000, `mindecrease')
+    *save weights in e(r)
+    mata: st_matrix("lambda", lambda_l')
+    mata: st_matrix("omega", lambda_o')
+    ereturn matrix lambda lambda
+    ereturn matrix omega  omega
+    *--------------------------------------------------------------------------*
+    *TAU
+    *--------------------------------------------------------------------------*
+    mata: results[i,1] = st_numscalar("time")
+    mata: results[i,2] = st_numscalar("obs")
+    mata: results[i,3] = (-lambda_o, J(1, `Ntr', 1/`Ntr'))*Yall[1..`N',1..`Tobs']*(-lambda_l, J(1, `Tpost', 1/`Tpost'))'
+    mata: i = i+1
+    restore
+}
+    scalar drop time obs
+    mata: results[.,2] = results[.,2]/sum(results[.,2])
+    mata: ATT = sum(results[.,2] :* results[.,3])
+    mata: st_local("ATT", strofreal(ATT))
+	
+	
+*Display results
+di as text " "
+di as text "{c TLC}{hline 16}{c TT}{hline 11}{c TRC}"
+di as text "{c |} {bf: ATT}           {c |} " as result %9.5f `ATT'  as text " {c |}"
+di as text "{c BLC}{hline 16}{c BT}{hline 11}{c BRC}"
+	
+}
+
+
 
 *Restore original data
 use `data', clear
@@ -463,7 +660,7 @@ t=0
 dd=1
 
 while (t<maxIter & (t<2 | dd>mindecrease)) {
-    t=t+1    
+    t++
     Ax = A * x'	
     hg = (Ax - b)' * A + eta * x
     i = select((1..cols(hg)), colmin(hg :== min(hg)))[1,1]
@@ -479,7 +676,7 @@ while (t<maxIter & (t<2 | dd>mindecrease)) {
         }
     }
     else {
-        derr = A[1..row,i] - Ax
+        derr = A[.,i] - Ax
         step = -(hg) * dx' :/ ((derr' * derr) + eta * (dx * dx'))
         conststep = min((1, max((0, step)))) 
         x = x + conststep * dx  
@@ -517,4 +714,5 @@ function sum_norm(matrix O)
     return(O)
 }
 end
+		
 			
