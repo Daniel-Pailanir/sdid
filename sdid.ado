@@ -1,4 +1,4 @@
-*! sdid: Synthetic Difference in Difference
+**! sdid: Synthetic Difference in Difference
 *! Version 0.1.0 January 25, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
@@ -423,6 +423,7 @@ else if "`vce'"=="placebo" {
         *----------------------------------------------------------------------*
         mata: tau_p[1,`b'] = (-w_o, J(1, `Ntr', 1/`Ntr'))*Yall[(ind1),1..`Tobs']*(-w_l, J(1, `Tpost', 1/`Tpost'))'
         local ++b
+		stop
         restore
     }
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(tau_p)))
@@ -437,7 +438,8 @@ else if "`vce'"=="jackknife" {
         di as err "It is not possible to do Jackknife se because there is only one treated unit"
         exit 198
     }
-    
+    mata: se = jackknife(Yall, lambda_l, lambda_o, `N0', `Tpost', `N', `Tobs')
+    mata: st_local("se", strofreal(se))
 }
 
 
@@ -446,10 +448,10 @@ ereturn local se `se'
 ereturn local tau `tau'
 
 di as text " "
-di as text "{c TLC}{hline 16}{c TT}{hline 11}{c TRC}"
-di as text "{c |} {bf: tau}           {c |} " as result %9.5f `tau'  as text " {c |}"
-di as text "{c |} {bf: se `vce'}  {c |} " as result %9.5f `se' as text " {c |}"
-di as text "{c BLC}{hline 16}{c BT}{hline 11}{c BRC}"
+di as text "{c TLC}{hline 7}{c TT}{hline 11}{c TRC}"
+di as text "{c |} {bf: tau}  {c |} " as result %9.5f `tau'  as text " {c |}"
+di as text "{c |} {bf: se}   {c |} " as result %9.5f `se' as text " {c |}"
+di as text "{c BLC}{hline 7}{c BT}{hline 11}{c BRC}"
 }
 
 *------------------------------------------------------------------------------*
@@ -739,5 +741,23 @@ function smerge(matrix A, matrix B)
     return(A)
 }
 end	
+
+*for jackknife
+mata:
+function jackknife(matrix Y, matrix L, matrix O, c, tp, N, T)
+{
+    tau_j = J(N, 1, .)
+	ind1 = (1::N)
+    for (i=1; i<=N; i++) {
+        id = select(ind1, ind1:!=i)
+        id2 = select(id, id:<=c)
+        t = length(id)-length(id2)
+		l_o = sum_norm(O[,id2]) 
+        tau_j[i,1] = (-l_o, J(1, t, 1/t))*Y[(id),1..T]*(-L, J(1, tp, 1/tp))'
+    }
+    se_j = sqrt(((N-1)/N) * (N - 1) * variance(vec(tau_j)))
+    return(se_j)
+}
+end
 		
 			
