@@ -41,18 +41,18 @@ local Tpre   = `T0' - `Tmin' +1 //number of pre times
 local Ttrmin = `T0' + 1         //first year of treatment
 
 di as text " "
-di as text "{c TLC}{hline 26}{c TT}{hline 6}{c TRC}"
-di as text "{c |} Number of units          {c |} `N'   {c |}"
-di as text "{c |} Number of times          {c |} `Tobs'   {c |}"
-di as text "{c |} Smallest unit of time    {c |} `Tmin' {c |}"
-di as text "{c |} Larger unit of time      {c |} `T' {c |}"
-di as text "{c |} Number of treated units  {c |} `Ntr'    {c |}"
-di as text "{c |} Number of control units  {c |} `N0'   {c |}"
-di as text "{c |} Number of post-periods   {c |} `Tpost'   {c |}"
-di as text "{c |} Number of pre-periods    {c |} `Tpre'   {c |}"
-di as text "{c |} Maximun time of control  {c |} `T0' {c |}"
-di as text "{c |} First time of treatment  {c |} `Ttrmin' {c |}"
-di as text "{c BLC}{hline 26}{c BT}{hline 6}{c BRC}"
+di as text "{c TLC}{hline 26}{c TT}{hline 6}"
+di as text "{c |} Number of units          {c |} `N'   "
+di as text "{c |} Number of times          {c |} `Tobs'   "
+di as text "{c |} Smallest unit of time    {c |} `Tmin' "
+di as text "{c |} Larger unit of time      {c |} `T' "
+di as text "{c |} Number of treated units  {c |} `Ntr'   "
+di as text "{c |} Number of control units  {c |} `N0'   "
+di as text "{c |} Number of post-periods   {c |} `Tpost'   "
+di as text "{c |} Number of pre-periods    {c |} `Tpre'   "
+di as text "{c |} Maximun time of control  {c |} `T0' "
+di as text "{c |} First time of treatment  {c |} `Ttrmin' "
+di as text "{c BLC}{hline 26}{c BT}{hline 6}"
 
 *-------------------------------------------------------*
 *- Calculate \zeta                                     -*
@@ -92,8 +92,10 @@ mkmat _all, matrix(Y1)
 matrix Y = (Y0 \ Y1) 
 clear
 qui svmat Y
-drop Y1
 gen id = _n
+qui putmata idd1 = Y1 idd2 = id, replace
+mata: indd = (idd1, idd2)
+drop Y1
 
 local i=2
 foreach n of local times {
@@ -193,10 +195,8 @@ ereturn matrix omega  omega
 *------------------------------------------------------------------------------*
 mata: tau = (-lambda_o, J(1, `Ntr', 1/`Ntr'))*Yall[1..`N',1..`Tobs']*(-lambda_l, J(1, `Tpost', 1/`Tpost'))'
 mata: st_local("tau", strofreal(tau))
-
 *restore original data
 use `data', clear
-
 *------------------------------------------------------------------------------*
 *VCE : bootstrap
 *------------------------------------------------------------------------------*
@@ -217,7 +217,8 @@ if "`vce'"=="bootstrap" {
 while `b'<=`B' {
     preserve
     bsample , cluster(`id') idcluster(`id2')
-    bys `id2' : egen `tr'`b' = mean(`4')
+    sort `id'
+    bys `id2': egen `tr'`b' = mean(`4')
     qui replace `tr'`b' = 1 if `tr'`b'!=0
 
     qui sum `tr'`b'
@@ -225,6 +226,9 @@ while `b'<=`B' {
         *di "Boot `b' : Nothing to do"
     }
     else {
+        qui tab `id2' if `tr'`b'==1
+        local Ntr = r(r)
+        local N0  = `N' - `Ntr' 
         *di "Boot `b' : Running"
         *-------------------------------------------------------*
         *- Preparing data                                      -*
@@ -237,6 +241,8 @@ while `b'<=`B' {
 
         *matrix of control units
         qui keep if `tr'`b'==0
+        qui putmata ind1 = `id' if `3'==`Tmin', replace
+		mata: ind1 = smerge(ind1, indd)
         keep `1' `id2' `3'
         qui reshape wide `1', i(`id2') j(`3')
         mkmat _all, matrix(Y0)
@@ -244,10 +250,11 @@ while `b'<=`B' {
         *matrix of treated units
         use `data`b'', clear
         qui keep if `tr'`b'==1
+        qui putmata ind2 = `id' if `3'==`Tmin', replace
+		mata: ind2 = smerge(ind2, indd)
         keep `1' `id2' `3'
         qui reshape wide `1', i(`id2') j(`3')
         mkmat _all, matrix(Y1)
-
         *matrix of control and treated units
         matrix Y = (Y0 \ Y1) 
         clear
@@ -317,8 +324,8 @@ while `b'<=`B' {
         mkmat t1-t`N0', matrix(A_o)
         mata : A_o = st_matrix("A_o")
         mata : b_o = st_matrix("b_o")
-
         *eta value
+        mata: st_local("row_l", strofreal(rows(A_l)))
         local eta_o = `row_o' * `ZetaOmega'^2
         local eta_l = `row_l' * `ZetaLambda'^2
         *----------------------------------------------------------------------*
@@ -331,13 +338,13 @@ while `b'<=`B' {
         *----------------------------------------------------------------------*
         *OMEGA
         *-----------------------------------------------------------------------*
-        mata: w_o = lambda(A_o, b_o, lambda_o, `eta_o', `ZetaOmega', 100, `mindec')
+        mata: w_o = lambda(A_o, b_o, lambda_o[1,ind1], `eta_o', `ZetaOmega', 100, `mindec')
         mata: w_o = sspar(w_o)
         mata: w_o = lambda(A_o, b_o, w_o, `eta_o', `ZetaOmega', 10000, `mindec')
         *-----------------------------------------------------------------------*
         *TAU
         *-----------------------------------------------------------------------*
-        mata: tau_b[1,`b'] = (-w_o, J(1, `Ntr', 1/`Ntr'))*Yall`b'[1..`N',1..`Tobs']*(-w_l, J(1, `Tpost', 1/`Tpost'))'
+        mata: tau_b[1,`b'] = (-w_o, J(1, `Ntr', 1/`Ntr'))*Yall`b'[.,1..`Tobs']*(-w_l, J(1, `Tpost', 1/`Tpost'))'
         local ++b
         }
         restore
@@ -395,7 +402,6 @@ else if "`vce'"=="placebo" {
         qui drop if `id'==`drp'
 		
         *eta value
-        mata: st_local("row_o", strofreal(rows(A_o[1..`Tpre',(ind2)])))
         mata: st_local("row_l", strofreal(rows(A_l[(ind2),1..`Tpre'])))
         local eta_o = `row_o' * `ZetaOmega'^2
         local eta_l = `row_l' * `ZetaLambda'^2
@@ -442,7 +448,7 @@ ereturn local tau `tau'
 di as text " "
 di as text "{c TLC}{hline 16}{c TT}{hline 11}{c TRC}"
 di as text "{c |} {bf: tau}           {c |} " as result %9.5f `tau'  as text " {c |}"
-di as text "{c |} {bf: se bootstrap}  {c |} " as result %9.5f `se' as text " {c |}"
+di as text "{c |} {bf: se `vce'}  {c |} " as result %9.5f `se' as text " {c |}"
 di as text "{c BLC}{hline 16}{c BT}{hline 11}{c BRC}"
 }
 
@@ -649,6 +655,7 @@ use `data', clear
 
 end
 
+*minimization
 mata:
 function lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease)
 {
@@ -692,6 +699,7 @@ return(x)
 }
 end
 
+*spar function
 mata:
 function sspar(matrix V)
 {
@@ -701,6 +709,7 @@ function sspar(matrix V)
 }
 end
 	
+*sum normalize
 mata:
 function sum_norm(matrix O)
 {
@@ -714,5 +723,21 @@ function sum_norm(matrix O)
     return(O)
 }
 end
+
+*merge bt two vectors
+mata:
+function smerge(matrix A, matrix B)
+{
+    v = J(rows(A), 1, .)
+    A = (A, v)
+    for (i=1; i<=rows(A); i++) {
+        for (j=1; j<=rows(B); j++) {
+            if (A[i,1]==B[j,1]) A[i,2]=B[j,2]
+        }
+	}
+    A = A[.,2]
+    return(A)
+}
+end	
 		
 			
