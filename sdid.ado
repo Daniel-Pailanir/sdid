@@ -1,4 +1,4 @@
-**! sdid: Synthetic Difference in Difference
+*! sdid: Synthetic Difference in Difference
 *! Version 0.1.0 January 25, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
@@ -366,41 +366,22 @@ else if "`vce'"=="placebo" {
         di as err "It is not possible to do Placebo se because there are more treated units than control units"
         exit 198
     }
-    
-    *Sum normalize for initialization
-    mata: lambda_o = sum_norm(lambda_o)
 		
     while `b'<=`B' {
         preserve
         clear
-        tempvar i ind
+        tempvar i iu
         qui set obs `N0'
-		gen `i' = _n
-        gen `ind' = runiform()
-        sort `ind'
+		gen i = _n
+        gen iu = runiform()
+        sort iu
+		qui putmata ind1 = i, replace
         local nN0 = `N0' - `Ntr'
-        qui putmata ind1 = `i', replace
-        qui drop in `N0'
-        qui levelsof `i', local(in)	
-        mata: ind2 = ind1[1..`nN0',1]
+        local mN0 = `nN0' + 1
+        qui drop in `mN0'/`N0'
+        mata: ind2 = ind1[1..`nN0',1]	
+        mata: l_o = sum_norm(lambda_o[,ind2]) 
 
-        use `data', clear
-        qui xtset `id' `3'
-        qui drop if `id'>`N0'
-        local sum1 = 0
-        foreach s of local in {
-            local sum1 = `sum1' + `s' 
-        }
-
-        local sum2 = 0
-        qui levelsof `id', local(j)
-        foreach s of local j {
-            local sum2 = `sum2' + `s' 
-        }
-
-		local drp = `sum2'-`sum1'
-        qui drop if `id'==`drp'
-		
         *eta value
         mata: st_local("row_l", strofreal(rows(A_l[(ind2),1..`Tpre'])))
         local eta_o = `row_o' * `ZetaOmega'^2
@@ -415,7 +396,7 @@ else if "`vce'"=="placebo" {
         *----------------------------------------------------------------------*
         *OMEGA
         *----------------------------------------------------------------------*
-        mata: w_o = lambda(A_o[.,(ind2)], b_o, lambda_o[1,(ind2)], `eta_o', `ZetaOmega', 100, `mindec')
+        mata: w_o = lambda(A_o[.,(ind2)], b_o, l_o, `eta_o', `ZetaOmega', 100, `mindec')
         mata: w_o = sspar(w_o)
         mata: w_o = lambda(A_o[.,(ind2)], b_o, w_o, `eta_o', `ZetaOmega', 10000, `mindec')
         *----------------------------------------------------------------------*
@@ -423,7 +404,6 @@ else if "`vce'"=="placebo" {
         *----------------------------------------------------------------------*
         mata: tau_p[1,`b'] = (-w_o, J(1, `Ntr', 1/`Ntr'))*Yall[(ind1),1..`Tobs']*(-w_l, J(1, `Tpost', 1/`Tpost'))'
         local ++b
-		stop
         restore
     }
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(tau_p)))
@@ -441,7 +421,6 @@ else if "`vce'"=="jackknife" {
     mata: se = jackknife(Yall, lambda_l, lambda_o, `N0', `Tpost', `N', `Tobs')
     mata: st_local("se", strofreal(se))
 }
-
 
 *Display results and save results
 ereturn local se `se' 
