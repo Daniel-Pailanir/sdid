@@ -15,7 +15,7 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 sdid Y S T D, adoption(type) vce(method) seed() reps()
 ```
 + adoption(): _**normal**_ and _**staggered**_ adoption; _**normal**_  refers when all units receive the treatment the same period and _**staggered**_ when the treatment is received in different periods of time. It is recommended and can be very helpful to read the appendix of the paper and the repo staggered treatment adoption in R [staggered_adoption_synthdid](https://github.com/zachporreca/staggered_adoption_synthdid).
-+ vce(): bootstrap and placebo (trial version for _**normal**_ version only) standard error. 
++ vce(): bootstrap, jackknife and placebo standard error (only for _**normal**_ version). 
 + seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
 
