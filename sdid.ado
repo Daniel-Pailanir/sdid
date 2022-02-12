@@ -195,8 +195,6 @@ ereturn matrix omega  omega
 *------------------------------------------------------------------------------*
 mata: tau = (-lambda_o, J(1, `Ntr', 1/`Ntr'))*Yall[1..`N',1..`Tobs']*(-lambda_l, J(1, `Tpost', 1/`Tpost'))'
 mata: st_local("tau", strofreal(tau))
-*restore original data
-use `data', clear
 *------------------------------------------------------------------------------*
 *VCE : bootstrap
 *------------------------------------------------------------------------------*
@@ -204,148 +202,58 @@ if "`vce'"=="bootstrap" {
     set seed `seed'
     local b = 1
     local B = `reps'
-    mata: tau_b = J(1, `B', .)
+    mata: tau_b = J(`B', 1, .)
 
     if (`Ntr'==1)==1 {
         di as err "It is not possible to do Bootstrap se because there is only one treated unit"
         exit 198
     }
-
-    *Sum normalize for initialization
-    mata: lambda_o = sum_norm(lambda_o)
 		
-while `b'<=`B' {
-    preserve
-    bsample , cluster(`id') idcluster(`id2')
-    sort `id'
-    bys `id2': egen `tr'`b' = mean(`4')
-    qui replace `tr'`b' = 1 if `tr'`b'!=0
-
-    qui sum `tr'`b'
-    if (r(mean)==0 | r(mean)==1) {
-        *di "Boot `b' : Nothing to do"
-    }
-    else {
-        qui tab `id2' if `tr'`b'==1
-        local Ntr = r(r)
-        local N0  = `N' - `Ntr' 
-        *di "Boot `b' : Running"
-        *-------------------------------------------------------*
-        *- Preparing data                                      -*
-        *-------------------------------------------------------*
-        *original bootstrap data
-        tempfile data`b'
-        qui save "`data`b''"
-        qui levelsof `3', local(times)
-        qui levelsof `3' if `3'<=`T0', local(timespre)
-
-        *matrix of control units
-        qui keep if `tr'`b'==0
-        qui putmata ind1 = `id' if `3'==`Tmin', replace
-		mata: ind1 = smerge(ind1, indd)
-        keep `1' `id2' `3'
-        qui reshape wide `1', i(`id2') j(`3')
-        mkmat _all, matrix(Y0)
-
-        *matrix of treated units
-        use `data`b'', clear
-        qui keep if `tr'`b'==1
-        qui putmata ind2 = `id' if `3'==`Tmin', replace
-		mata: ind2 = smerge(ind2, indd)
-        keep `1' `id2' `3'
-        qui reshape wide `1', i(`id2') j(`3')
-        mkmat _all, matrix(Y1)
-        *matrix of control and treated units
-        matrix Y = (Y0 \ Y1) 
+    while `b'<=`B' {
+        preserve
         clear
-        qui svmat Y
-        drop Y1
-        gen id = _n
+        tempvar i1 i2
+        qui set obs `N'
+        gen `i1' = _n
+        bsample , cluster(`i1') idcluster(`i2')
+        qui tab `i1' if `i1'<=`N0'
+        local r1 = r(r)
+        qui tab `i1' if `i1'>`N0'
+        local r2 = r(r)
 
-        local i=2
-        foreach n of local times {
-            ren Y`i' t`n'
-            local ++i
-        }
+        if (`r1'==0 | `r2'==0) {
+            *di "all control or treated unit"
+        }	
+        else {
+            *di "at least one treated and control unit"
+            sort `i1'
+            qui putmata ind1 = `i1', replace
+            mata: ind2 = select(ind1, ind1:<=`N0')
+            mata: Ntr = length(ind1) - length(ind2)
+            mata: l_o = sum_norm(lambda_o[,ind2]) 
 
-        *data for estimator
-        mkmat _all, matrix(Yall`b')
-        mata: Yall`b' = st_matrix("Yall`b'")
-
-        egen promt = rowmean(t`Ttrmin'-t`T')
-        drop t`Ttrmin'-t`T'
-        local r=`N'+1
-        qui set obs `r'
-  
-        forvalues t=`Tmin'/`T0' {
-            qui sum     t`t' if id>`N0'
-            qui replace t`t' = r(mean) in `r'
-        }
-
-        qui drop if id>`N0' & id!=. 
-        mkmat _all, matrix(Y)
-        *-------------------------------------------------------*
-        *Matrices for optimization
-        *-------------------------------------------------------*
-        *Matrix A & b : Lambda 
-        clear
-        qui svmat Y, names(col)
-
-        local vr `timespre' promt
-        foreach t of local vr {
-            if "`t'"=="promt" local n ""
-            if "`t'"!="promt" local n "t"
-            qui sum `n'`t' if id<=`N0'
-            qui replace `n'`t' = `n'`t' - r(mean) 
-        }
-
-        qui keep in 1/`N0'
-        mkmat promt, matrix(b_l)
-        mkmat t`Tmin'-t`T0', matrix(A_l)
-        mata: A_l = st_matrix("A_l")
-        mata: b_l = st_matrix("b_l")
-
-        *Matrix A & b : Omega
-        clear
-        qui svmat Y, names(col)
-        drop promt id
-        gen id = _n
-        qui reshape long t, i(id) j(a)
-        qui reshape wide t, i(a) j(id)
-        drop a
-
-        local max=`N0'+1
-        forvalues t=1/`max'  {
-            qui sum t`t'
-            qui replace t`t' = t`t' - r(mean)
-        }
-
-        mkmat t`max', matrix(b_o)
-        mkmat t1-t`N0', matrix(A_o)
-        mata : A_o = st_matrix("A_o")
-        mata : b_o = st_matrix("b_o")
-        *eta value
-        mata: st_local("row_l", strofreal(rows(A_l)))
-        local eta_o = `row_o' * `ZetaOmega'^2
-        local eta_l = `row_l' * `ZetaLambda'^2
-        *----------------------------------------------------------------------*
-        *LAMBDA
-        *----------------------------------------------------------------------*
-        local mindec = (1e-5 * `sig')^2
-        mata: w_l = lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', 100, `mindec')
-        mata: w_l = sspar(w_l)
-        mata: w_l = lambda(A_l, b_l, w_l, `eta_l', `ZetaLambda', 10000, `mindec')
-        *----------------------------------------------------------------------*
-        *OMEGA
-        *-----------------------------------------------------------------------*
-        mata: w_o = lambda(A_o, b_o, lambda_o[1,ind1], `eta_o', `ZetaOmega', 100, `mindec')
-        mata: w_o = sspar(w_o)
-        mata: w_o = lambda(A_o, b_o, w_o, `eta_o', `ZetaOmega', 10000, `mindec')
-        *-----------------------------------------------------------------------*
-        *TAU
-        *-----------------------------------------------------------------------*
-        mata: tau_b[1,`b'] = (-w_o, J(1, `Ntr', 1/`Ntr'))*Yall`b'[.,1..`Tobs']*(-w_l, J(1, `Tpost', 1/`Tpost'))'
-        local ++b
+            *eta value
+            mata: st_local("row_l", strofreal(rows(A_l[(ind2),1..`Tpre'])))
+            local eta_o = `row_o' * `ZetaOmega'^2
+            local eta_l = `row_l' * `ZetaLambda'^2
+            *------------------------------------------------------------------*
+            *LAMBDA
+            *------------------------------------------------------------------*
+            local mindec = (1e-5 * `sig')^2
+            mata: w_l = lambda(A_l[(ind2),.], b_l[(ind2),1], lambda_l, `eta_l', `ZetaLambda', 100, `mindec')
+            mata: w_l = sspar(w_l)
+            mata: w_l = lambda(A_l[(ind2),.], b_l[(ind2),1], w_l, `eta_l', `ZetaLambda', 10000, `mindec')
+            *------------------------------------------------------------------*
+            *OMEGA
+            *------------------------------------------------------------------*
+            mata: w_o = lambda(A_o[.,(ind2)], b_o, l_o, `eta_o', `ZetaOmega', 100, `mindec')
+            mata: w_o = sspar(w_o)
+            mata: w_o = lambda(A_o[.,(ind2)], b_o, w_o, `eta_o', `ZetaOmega', 10000, `mindec')
+            *------------------------------------------------------------------*
+            *TAU
+            *------------------------------------------------------------------*
+            mata: tau_b[`b',] = (-w_o, J(1, Ntr, 1/Ntr))*Yall[(ind1),1..`Tobs']*(-w_l, J(1, `Tpost', 1/`Tpost'))'
+           local ++b
         }
         restore
     }
@@ -366,16 +274,15 @@ else if "`vce'"=="placebo" {
         di as err "It is not possible to do Placebo se because there are more treated units than control units"
         exit 198
     }
-		
     while `b'<=`B' {
         preserve
         clear
         tempvar i iu
         qui set obs `N0'
-		gen i = _n
-        gen iu = runiform()
-        sort iu
-		qui putmata ind1 = i, replace
+		gen `i' = _n
+        gen `iu' = runiform()
+        sort `iu'
+		qui putmata ind1 = `i', replace
         local nN0 = `N0' - `Ntr'
         local mN0 = `nN0' + 1
         qui drop in `mN0'/`N0'
@@ -422,7 +329,9 @@ else if "`vce'"=="jackknife" {
     mata: st_local("se", strofreal(se))
 }
 
+*------------------------------------------------------------------------------*
 *Display results and save results
+*------------------------------------------------------------------------------*
 ereturn local se `se' 
 ereturn local tau `tau'
 
@@ -620,15 +529,14 @@ foreach t of local trt {
     mata: ATT = sum(results[.,2] :* results[.,3])
     mata: st_local("ATT", strofreal(ATT))
 	
-	
 *Display results
 di as text " "
-di as text "{c TLC}{hline 16}{c TT}{hline 11}{c TRC}"
-di as text "{c |} {bf: ATT}           {c |} " as result %9.5f `ATT'  as text " {c |}"
-di as text "{c BLC}{hline 16}{c BT}{hline 11}{c BRC}"
+di as text "{c TLC}{hline 8}{c TT}{hline 11}{c TRC}"
+di as text "{c |} {bf: ATT}   {c |} " as result %9.5f `ATT'  as text " {c |}"
+di as text "{c |} {bf: se}    {c |} " as text "          {c |}"
+di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"
 	
 }
-
 
 
 *Restore original data
@@ -705,7 +613,7 @@ function sum_norm(matrix O)
 }
 end
 
-*merge bt two vectors
+*simple merge bt two vectors
 mata:
 function smerge(matrix A, matrix B)
 {
