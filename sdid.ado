@@ -423,7 +423,6 @@ else if "`vce'"=="placebo" {
         *----------------------------------------------------------------------*
         mata: tau_p[1,`b'] = (-w_o, J(1, `Ntr', 1/`Ntr'))*Yall[(ind1),1..`Tobs']*(-w_l, J(1, `Tpost', 1/`Tpost'))'
         local ++b
-		stop
         restore
     }
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(tau_p)))
