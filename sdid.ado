@@ -346,6 +346,8 @@ di as text "{c BLC}{hline 7}{c BT}{hline 11}{c BRC}"
 *STAGGERED ADOPTION
 *------------------------------------------------------------------------------*
 else if "`adoption'"=="staggered" {
+    tempfile OriginalData
+    qui save "`OriginalData'"
     tokenize `varlist'
     tempvar i m adoption trt
     egen `i' = group(`2')
@@ -404,7 +406,6 @@ foreach t of local trt {
     *-------------------------------------------------------*
     *- Preparing data                                      -*
     *-------------------------------------------------------*
-    *original data
     tempfile data
     qui save "`data'"
     qui levelsof `3', local(times)                 
@@ -540,7 +541,7 @@ di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"
 
 
 *Restore original data
-use `data', clear
+use `OriginalData', clear
 
 end
 
