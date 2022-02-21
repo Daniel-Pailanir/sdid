@@ -60,7 +60,7 @@ di as text "{c BLC}{hline 26}{c BT}{hline 6}"
 bys `id': egen `tr' = mean(`4')
 qui replace `tr' = 1 if `tr'!=0
 local EtaOmega  = (`Ntr' * `Tpost')^(1/4)
-local EtaLambda = 1e-6
+local EtaLambda = 1.0c6f7a0b5ed8dX-014
 qui gen `diff' = `1' - L.`1'
 qui sum `diff' if `3'<=`T0' & `tr'==0
 local sig = r(sd)
@@ -174,7 +174,7 @@ mata: lambda_l = J(1, `col_l', 1 / `col_l')
 *------------------------------------------------------------------------------*
 *LAMBDA
 *------------------------------------------------------------------------------*
-local mindecrease=(1e-5 * `sig')^2
+local mindecrease=(1.4f8b588e368f1X-011 * `sig')^2
 mata: lambda_l = lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', 100, `mindecrease')
 mata: lambda_l = sspar(lambda_l)
 mata: lambda_l = lambda(A_l, b_l, lambda_l, `eta_l', `ZetaLambda', 10000, `mindecrease')
@@ -340,6 +340,10 @@ di as text "{c TLC}{hline 7}{c TT}{hline 11}{c TRC}"
 di as text "{c |} {bf: tau}  {c |} " as result %9.5f `tau'  as text " {c |}"
 di as text "{c |} {bf: se}   {c |} " as result %9.5f `se' as text " {c |}"
 di as text "{c BLC}{hline 7}{c BT}{hline 11}{c BRC}"
+
+
+*Restore original data
+use `data', clear
 }
 
 *------------------------------------------------------------------------------*
@@ -537,11 +541,12 @@ di as text "{c |} {bf: ATT}   {c |} " as result %9.5f `ATT'  as text " {c |}"
 di as text "{c |} {bf: se}    {c |} " as text "          {c |}"
 di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"
 	
+*Restore original data
+use `OriginalData', clear
 }
 
 
-*Restore original data
-use `OriginalData', clear
+
 
 end
 
@@ -647,5 +652,4 @@ function jackknife(matrix Y, matrix L, matrix O, c, tp, N, T)
     return(se_j)
 }
 end
-		
 			
