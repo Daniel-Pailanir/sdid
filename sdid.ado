@@ -204,7 +204,6 @@ if "`adoption'"=="normal" {
         dis "Bootstrap replications (`reps'). This may take some time."
         dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
 
-        list
         preserve
         clear
         while `b'<=`B' {
@@ -314,7 +313,7 @@ if "`adoption'"=="normal" {
             di as err "It is not possible to do Jackknife se because there is only one treated unit"
             exit 198
         }
-        mata: se = jackknife(Yall, lambda_l, lambda_o, `N0', `Tpost', `N', `Tobs')
+        mata: se = jackknife(Yall, st_matrix("LAMBDA_L")', st_matrix("LAMBDA_O")', `N0', `Tpost', `N', `Tobs')
         mata: st_local("se", strofreal(se))
     }
     
