@@ -171,9 +171,7 @@ if "`adoption'"=="normal" {
     mkmat t`max', matrix(b_o)
     mkmat t1-t`N0', matrix(A_o)
     
-    *** Lambda es el peso por tiempo
-    *** Omega es el peso por estado
-    local mindecrease=(1.4f8b588e368f1X-011 * `sig')^2
+    local mindec=(1.4f8b588e368f1X-011 * `sig')^2
     local col_l = colsof(A_l)
     local col_o = colsof(A_o)
     mat def lambda_l = J(1, `col_l', 1 / `col_l')
@@ -186,7 +184,7 @@ if "`adoption'"=="normal" {
     
     #delimit ;
     mata: tau = estTau(A_l, b_l, A_o, b_o, st_matrix("lambda_l"),st_matrix("lambda_o"),
-                       Yall, `ZetaLambda', `ZetaOmega',`mindecrease',`Ntr',`N',
+                       Yall, `ZetaLambda', `ZetaOmega',`mindec',`Ntr',`N',
                        `Tobs',`Tpost');
     #delimit cr
     ereturn matrix lambda lambda
@@ -337,20 +335,19 @@ if "`adoption'"=="normal" {
 *STAGGERED ADOPTION
 *------------------------------------------------------------------------------*
 else if "`adoption'"=="staggered" {
-    tempfile baseoriginal
-    qui save `baseoriginal'
     tokenize `varlist'
     tempvar ii m adoption trt
     egen `ii' = group(`2')
     qui xtset `ii' `3'
-    local Tmin = r(tmin) //t min
-    local T    = r(tmax) //t max
+    local Tmin = r(tmin)         //t min
+    local T    = r(tmax)         //t max
     local balanced = r(balanced) //balance
 
     if ("`balanced'"!="strongly balanced")==1 {
         di as err "Not Strongly Balanced data"
         exit 198
-    }	
+    }
+	
     *Define treated periods
     bys `2' `4': egen `m' = min(`3')
     by  `2': egen `adoption' = max(`m')
@@ -358,17 +355,30 @@ else if "`adoption'"=="staggered" {
     qui levelsof `adoption' if `adoption'>0, local(trt)
     qui tab `adoption' if `adoption'>0
     local length = r(r) 
-    mata: results = J(`length', 6, .)
+    mata: results = J(`length', 3, .)
 
     *filter data and SDiD
     mata: i = 1
     tempfile base
     qui save `base'
+
+    ****
+    keep `2' `ii' `adoption'
+    bys `2': gen N=_n
+    qui keep if N==1
+    drop N
+    rename `2' state
+    rename `ii' statenumber
+    rename `adoption' adoption
+    tempfile resamplebase
+    qui save `resamplebase'
+	****
+
+    use `base', clear
     foreach t of local trt {
         tempvar id id2 diff tr post_treat
         qui keep if `adoption'==`t' | `adoption'==0
         scalar time=`t'
-        
         gen `post_treat' = 0
         qui replace `post_treat' = 1 if `3'>=`adoption' & `adoption'!=0
         qui sum `post_treat' if `post_treat'==1
@@ -378,35 +388,36 @@ else if "`adoption'"=="staggered" {
         *----------------------------------------------------------------------*
         egen `id' = group(`2')
         qui xtset `id' `3'
-        local N    = r(imax)      //number of units
+        local N_`t' = r(imax)                   //number of units
         qui tab `id' if `4'==1
-        local Ntr = r(r)         //number of treated units
-        local N0  = `N' - `Ntr'  //number of control units
+        local Ntr_`t' = r(r)                    //number of treated units
+        local N0_`t'  = `N_`t'' - `Ntr_`t''     //number of control units
         qui tab `3' if `3'>=`t'
-        local Tpost  = r(r)             //number of post times
-        local T0     = `T'  - `Tpost'   //max time of control
-        local Tobs   = `T'  - `Tmin' +1 //number of times
-        local Tpre   = `T0' - `Tmin' +1 //number of pre times
-        local Ttrmin = `T0' + 1         //first year of treatment
+        local Tpost_`t'  = r(r)                 //number of post times
+        local T0_`t'     = `T'  - `Tpost_`t''   //max time of control
+        local Tobs       = `T'  - `Tmin' +1     //number of times
+        local Tpre_`t'   = `T0_`t'' - `Tmin' +1 //number of pre times
+        local Ttrmin_`t' = `T0_`t'' + 1         //first year of treatment
         *----------------------------------------------------------------------*
         *- Calculate \zeta                                                    -*
         *----------------------------------------------------------------------*
         bys `id': egen `tr' = mean(`4')
         qui replace `tr' = 1 if `tr'!=0
-        local EtaOmega  = (`Ntr' * `Tpost')^(1/4)
+        local EtaOmega  = (`Ntr_`t'' * `Tpost_`t'')^(1/4)
         local EtaLambda = 1e-6
         qui gen `diff' = `1' - L.`1'
-        qui sum `diff' if `3'<=`T0' & `tr'==0
-        local sig = r(sd)
-        local ZetaOmega  = `EtaOmega'  * `sig' 
-        local ZetaLambda = `EtaLambda' * `sig'
+        qui sum `diff' if `3'<=`T0_`t'' & `tr'==0
+        local sig_`t' = r(sd)
+        local ZetaOmega_`t'  = `EtaOmega'  * `sig_`t'' 
+        local ZetaLambda_`t' = `EtaLambda' * `sig_`t''
         *----------------------------------------------------------------------*
         *- Preparing data                                                     -*
         *----------------------------------------------------------------------*
         tempfile data
         qui save "`data'"
-        qui levelsof `3', local(times)                 
-        qui levelsof `3' if `3'<=`T0', local(timespre) 
+
+        qui levelsof `3', local(times)                
+        qui levelsof `3' if `3'<=`T0_`t'', local(timespre) 
         *matrix of control units
         qui keep if `tr'==0
         keep `1' `id' `3'
@@ -422,30 +433,30 @@ else if "`adoption'"=="staggered" {
         matrix Y = (Y0 \ Y1) 
         clear
         qui svmat Y
-        drop Y1
         gen id = _n
+        mkmat Y1 id, matrix(matind) //matrix indicator
+        mata: matind=st_matrix("matind")		
+        drop Y1
         local i=2
         foreach n of local times {
             ren Y`i' t`n'
             local ++i
         }
-    
         *All data for estimator
-        mkmat _all, matrix(Yall)
-        mata: Yall = st_matrix("Yall")
-        mata: Yall = Yall[1..`N',1..`Tobs']
-
-        egen promt = rowmean(t`Ttrmin'-t`T')
-        drop t`Ttrmin'-t`T'
-        local r=`N'+1
+        mkmat _all, matrix(Yall_`t')
+        mata: Yall_`t' = st_matrix("Yall_`t'")
+        mata: Yall_`t' = Yall_`t'[1..`N_`t'',1..`Tobs']
+        egen promt = rowmean(t`Ttrmin_`t''-t`T')
+        drop t`Ttrmin_`t''-t`T'
+        local r=`N_`t''+1
         qui set obs `r'
-      
-        forvalues t=`Tmin'/`T0' {
-            qui sum     t`t' if id>`N0'
-            qui replace t`t' = r(mean) in `r'
-        }
-    
-        qui drop if id>`N0' & id!=.
+
+        forvalues tm=`Tmin'/`T0_`t'' {
+            qui sum     t`tm' if id>`N0_`t''
+            qui replace t`tm' = r(mean) in `r'
+        }    
+
+        qui drop if id>`N0_`t'' & id!=.
         mkmat _all, matrix(Y)
         *----------------------------------------------------------------------*
         *- Matrices for optimization                                          -*
@@ -455,16 +466,16 @@ else if "`adoption'"=="staggered" {
         qui svmat Y, names(col)
     
         local vr `timespre' promt
-        foreach t of local vr {
-            if "`t'"=="promt" local n ""
-            if "`t'"!="promt" local n "t"
-            qui sum `n'`t' if id<=`N0'
-            qui replace `n'`t' = `n'`t' - r(mean) 
+        foreach tm of local vr {
+            if "`tm'"=="promt" local n ""
+            if "`tm'"!="promt" local n "t"
+            qui sum `n'`tm' if id<=`N0_`t''
+            qui replace `n'`tm' = `n'`tm' - r(mean) 
         }
 
-        qui keep in 1/`N0'
+        qui keep in 1/`N0_`t''
         mkmat promt, matrix(b_l)
-        mkmat t`Tmin'-t`T0', matrix(A_l)
+        mkmat t`Tmin'-t`T0_`t'', matrix(A_l)
         local col_l = colsof(A_l)
         local row_l = rowsof(A_l)
         mata: A_l = st_matrix("A_l")
@@ -477,21 +488,22 @@ else if "`adoption'"=="staggered" {
         qui reshape long t, i(id) j(a)
         qui reshape wide t, i(a) j(id)
         drop a
-    
-        local max=`N0'+1
-        forvalues t=1/`max'  {
-            qui sum t`t'
-            qui replace t`t' = t`t' - r(mean)
-        }
-        mkmat t`max', matrix(b_o)
-        mkmat t1-t`N0', matrix(A_o)
 
-        local mindecrease=(1.4f8b588e368f1X-011 * `sig')^2
+        local max=`N0_`t''+1
+        forvalues tm=1/`max'  {
+            qui sum t`tm'
+            qui replace t`tm' = t`tm' - r(mean)
+        }
+			
+        mkmat t`max', matrix(b_o)
+        mkmat t1-t`N0_`t'', matrix(A_o)
+
+        local mindec_`t'=(1e-5 * `sig_`t'')^2
         local col_l = colsof(A_l)
         local col_o = colsof(A_o)
         mat def lambda_l = J(1, `col_l', 1 / `col_l')
         mat def lambda_o = J(1, `col_o', 1 / `col_o')
-    
+
         mata: A_l=st_matrix("A_l")
         mata: b_l=st_matrix("b_l")
         mata: A_o=st_matrix("A_o")
@@ -500,17 +512,20 @@ else if "`adoption'"=="staggered" {
         *TAU
         *--------------------------------------------------------------------------*
         #delimit ;
-        mata: tau = estTau(A_l, b_l, A_o, b_o, st_matrix("lambda_l"),st_matrix("lambda_o"),
-                           Yall, `ZetaLambda', `ZetaOmega',`mindecrease',`Ntr',`N',
-                           `Tobs',`Tpost');
+        mata: tau = estTau(A_l,b_l,A_o,b_o,st_matrix("lambda_l"),st_matrix("lambda_o"),
+                           Yall_`t', `ZetaLambda_`t'', `ZetaOmega_`t'',`mindec_`t'',
+                           `Ntr_`t'',`N_`t'',`Tobs',`Tpost_`t'');
         #delimit cr
-        ereturn matrix lambda lambda
-        ereturn matrix omega  omega
-        matrix LAMBDA_L = e(lambda)
-        matrix LAMBDA_O = e(omega)
+
+        ereturn matrix lambda_`t' lambda
+        ereturn matrix omega_`t'  omega
+        matrix LAMBDA_L_`t' = e(lambda_`t')
+        matrix LAMBDA_O_`t' = e(omega_`t')
         mata: st_local("tau", strofreal(tau))
 
-        mata: lambda_o=st_matrix("LAMBDA_O")
+        mata: lambda_o_`t' = st_matrix("LAMBDA_O_`t'")
+        mata: lambda_l_`t' = st_matrix("LAMBDA_L_`t'")
+
         mata: results[i,1] = st_numscalar("time")
         mata: results[i,2] = st_numscalar("obs")
         mata: results[i,3] = tau
@@ -531,206 +546,132 @@ else if "`adoption'"=="staggered" {
         local B = `reps'
         mata: ATT_b = J(`B', 1, .)
     
-        if (`Ntr'==1)==1 {
+        /*if (`Ntr'==1)==1 {
             di as err "It is not possible to do Bootstrap se because there is only one treated unit"
             exit 198
-        }
+        }*/
+		
         dis "Bootstrap replications (`reps'). This may take some time."
         dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
 
         clear
         while `b'<=`B' {
-		*di "-------------------------"
-		*di "COMIENZO"
-	        use `baseoriginal', clear
-            tokenize `varlist'
-			tempvar m adoption trt
-            egen `ii' = group(`2')
-            bsample , cluster(`ii') idcluster(`ii'2)
-            qui xtset `ii'2 `3'
-            local Tmin = r(tmin) //t min
-            local T    = r(tmax) //t max
-            *Define treated periods
-            bys `ii' `4': egen `m' = min(`3')
-            by  `ii': egen `adoption' = max(`m')
-            qui by `ii': replace `adoption' = 0 if `adoption'==`Tmin'
-            qui levelsof `adoption' if `adoption'>0, local(trt)
-            qui tab `adoption' if `adoption'>0
-            local length = r(r) 
-            mata: results = J(`length', 6, .)
-			
-            qui tab `ii' if `4'==0
-            local r1 = r(r)
-            qui tab `ii' if `4'==1
-            local r2 = r(r)
+            use `resamplebase', clear
+            bsample , cluster(statenumber) idcluster(bootState)
+            qui count if adoption == 0
+            local r1 = r(N)
+            qui count if adoption != 0
+            local r2 = r(N)
+
+			*di "`r1' `r2'"
 			
             if (`r1'==0 | `r2'==0) {
-                *di "all control or treated unit"
+                *di "all units are control or treated"
             }	
             else {
                 display in smcl "." _continue
-                if mod(`b',50)==0 dis "     `b'"            
-            mata: i = 1
-            foreach t of local trt {
-                tempvar id id2 diff tr post_treat
-                qui keep if `adoption'==`t' | `adoption'==0
-				*di "`t' `b'"
-                scalar time=`t'
-                gen `post_treat' = 0
-                qui replace `post_treat' = 1 if `3'>=`adoption' & `adoption'!=0
-                qui sum `post_treat' if `post_treat'==1
-                scalar obs=r(N)
-                *--------------------------------------------------------------*
-                *- Create some temporal variables and locals                  -*
-                *--------------------------------------------------------------*
-                egen `id' = group(`ii'2)
-                qui xtset `id' `3'
-                local N    = r(imax)      //number of units
-                qui tab `id' if `4'==1
-                local Ntr = r(r)         //number of treated units
-                local N0_b  = `N' - `Ntr'  //number of control units
-                qui tab `3' if `3'>=`t'
-                local Tpost  = r(r)             //number of post times
-                local T0     = `T'  - `Tpost'   //max time of control
-                local Tobs   = `T'  - `Tmin' +1 //number of times
-                local Tpre   = `T0' - `Tmin' +1 //number of pre times
-                local Ttrmin = `T0' + 1         //first year of treatment
-                *--------------------------------------------------------------*
-                *- Calculate \zeta                                            -*
-                *--------------------------------------------------------------*
-                bys `id': egen `tr' = mean(`4')
-                qui replace `tr' = 1 if `tr'!=0
-                local EtaOmega  = (`Ntr' * `Tpost')^(1/4)
-                local EtaLambda = 1e-6
-                qui gen `diff' = `1' - L.`1'
-                qui sum `diff' if `3'<=`T0' & `tr'==0
-                local sig = r(sd)
-                local ZetaOmega  = `EtaOmega'  * `sig' 
-                local ZetaLambda = `EtaLambda' * `sig'
-                *--------------------------------------------------------------*
-                *- Preparing data                                             -*
-                *--------------------------------------------------------------*
-                tempfile data
-                qui save `data'
-                qui levelsof `3', local(times)                 
-                qui levelsof `3' if `3'<=`T0', local(timespre) 
-                *matrix of control units
-                qui keep if `tr'==0
-                keep `1' `id' `3'
-                qui reshape wide `1', i(`id') j(`3')
-                mkmat _all, matrix(Y0)
-                *matrix of treated units
-                use `data', clear
-                qui keep if `tr'==1
-                keep `1' `id' `3'
-                qui reshape wide `1', i(`id') j(`3')
-                mkmat _all, matrix(Y1)
+                if mod(`b',50)==0 dis "     `b'"
+            
+                qui levelsof adoption if adoption > 0, local(trt)
+                qui tab adoption      if adoption > 0
+                local length = r(r) 
+                mata: results = J(`length', 6, .)
 
-                *matrix of control and treated units
-                matrix Y = (Y0 \ Y1) 
-                clear
-                qui svmat Y
-                drop Y1
-                gen id = _n
-                local i=2
-                foreach n of local times {
-                    ren Y`i' t`n'
-                    local ++i
-                }
+                mata: i = 1
+                foreach t of local trt {
+                    qui keep if adoption==`t' | adoption==0
+                    qui putmata ind1 = statenumber, replace
+                    qui putmata ind2 = statenumber if adoption==0, replace
+					
+					mata: ind1 = smerge(ind1, matind) //Yall matrix position: N0 and N1
+					mata: ind2 = smerge(ind2, matind) //Yall matrix position: N0
+					mata: ind1 = sort(ind1,1)
+					mata: ind2 = sort(ind2,1)
+                    mata: Ntrb = length(ind1) - length(ind2) //treated units
+					mata: new_d=(Yall_2003[ind1,],ind1)					
+                    mata: st_matrix("new_d", new_d)
+					clear
+					qui svmat new_d, names(col)
+                    local i=1
+                    foreach n of local times {
+                        ren c`i' t`n'
+                        local ++i
+                    }
+                    local nv=`Tobs'+1
+                    ren c`nv' id
+                    sort id
+									
+                    egen promt = rowmean(t`Ttrmin_`t''-t`T')
+                    drop t`Ttrmin_`t''-t`T'
+                    local r=`N_`t''+1
+                    qui set obs `r'
 
-                *All data for estimator
-                mkmat _all, matrix(Yall)
-                mata: Yall = st_matrix("Yall")
-                mata: Yall = Yall[1..`N',1..`Tobs']
-                egen promt = rowmean(t`Ttrmin'-t`T')
-                drop t`Ttrmin'-t`T'
-                local r=`N'+1
-                qui set obs `r'
-      
-                forvalues t=`Tmin'/`T0' {
-                    qui sum     t`t' if id>`N0_b'
-                    qui replace t`t' = r(mean) in `r'
-                }
+                    forvalues tm=`Tmin'/`T0_`t'' {
+                        qui sum     t`tm' if id>`N0_`t''
+                        qui replace t`tm' = r(mean) in `r'
+                    }    
+
+                    qui drop if id>`N0_`t'' & id!=.
+                    mkmat _all, matrix(Y)
+                    *----------------------------------------------------------*
+                    *- Matrices for optimization                              -*
+                    *----------------------------------------------------------*
+                    *Matrix A & b : Lambda 
+                    clear
+                    qui svmat Y, names(col)
     
-                qui drop if id>`N0_b' & id!=.
-                mkmat _all, matrix(Y)
-                *--------------------------------------------------------------*
-                *- Matrices for optimization                                  -*
-                *--------------------------------------------------------------*
-                *Matrix A & b : Lambda 
-                clear
-                qui svmat Y, names(col)
-    
-                local vr `timespre' promt
-                foreach t of local vr {
-                    if "`t'"=="promt" local n ""
-                    if "`t'"!="promt" local n "t"
-                    qui sum `n'`t' if id<=`N0_b'
-                    qui replace `n'`t' = `n'`t' - r(mean) 
+                    local vr `timespre' promt
+                    foreach tm of local vr {
+                        if "`tm'"=="promt" local n ""
+                        if "`tm'"!="promt" local n "t"
+                        qui sum `n'`tm' if id<=`N0_`t''
+                        qui replace `n'`tm' = `n'`tm' - r(mean) 
+                    }
+
+                    qui keep if id<`N0_`t''
+                    mkmat promt, matrix(b_lb)
+                    mkmat t`Tmin'-t`T0_`t'', matrix(A_lb)
+                    local col_l = colsof(A_lb)
+                    local row_l = rowsof(A_lb)
+                    mata: A_lb = st_matrix("A_lb")
+                    mata: b_lb = st_matrix("b_lb")
+                    *Matrix A & b : Omega
+                    clear
+                    qui svmat Y, names(col)
+                    drop promt id
+                    gen id = _n
+                    qui sum id
+                    local max=`r(max)'
+                    qui reshape long t, i(id) j(a)
+                    qui reshape wide t, i(a) j(id)
+                    drop a
+                    local umax=`max'-1
+                    forvalues tm=1/`umax'  {
+                        qui sum t`tm'
+                        qui replace t`tm' = t`tm' - r(mean)
+                    }
+			
+                    mkmat t`max', matrix(b_ob)
+                    mkmat t1-t`umax', matrix(A_ob)
+                    mata: A_ob = st_matrix("A_ob")
+                    mata: b_ob = st_matrix("b_ob")
+					
+                    mata: l_o = sum_norm(lambda_o_`t''[,ind2]) //actualizamos w omega
+					mata: Yallb=Yall_`t'[ind1,]				
+
+                    #delimit ;
+                    mata: ATT_b[`b',] = estTau(A_lb, b_lb, A_ob, b_ob, 
+                                        st_matrix("LAMBDA_L_`t'")',l_o, 
+                                        Yallb, `ZetaLambda_`t'', `ZetaOmega_`t'',
+                                        `mindec_`t'',Ntrb,`N_`t'',`Tobs',`Tpost_`t'');
+                    #delimit cr           
+
+                    local ++b 
                 }
-
-                qui keep in 1/`N0_b'
-                mkmat promt, matrix(b_l)
-                mkmat t`Tmin'-t`T0', matrix(A_l)
-                local col_l = colsof(A_l)
-                local row_l = rowsof(A_l)
-                mata: A_l = st_matrix("A_l")
-                mata: b_l = st_matrix("b_l")
-                *Matrix A & b : Omega
-                clear
-                qui svmat Y, names(col)
-                drop promt id
-                gen id = _n
-                qui reshape long t, i(id) j(a)
-                qui reshape wide t, i(a) j(id)
-                drop a
-
-                local max=`N0_b'+1
-                forvalues t=1/`max'  {
-                    qui sum t`t'
-                    qui replace t`t' = t`t' - r(mean)
-                }
-                mkmat t`max', matrix(b_o)
-                mkmat t1-t`N0_b', matrix(A_o)
-                local mindecrease=(1.4f8b588e368f1X-011 * `sig')^2
-                local col_l = colsof(A_l)
-                local col_o = colsof(A_o)
-                mat def lambda_l = J(1, `col_l', 1 / `col_l')
-                mat def lambda_o = J(1, `col_o', 1 / `col_o')
-    
-                mata: A_l=st_matrix("A_l")
-                mata: b_l=st_matrix("b_l")
-                mata: A_o=st_matrix("A_o")
-                mata: b_o=st_matrix("b_o")
-                *--------------------------------------------------------------*
-                *- TAU                                                        -*
-                *--------------------------------------------------------------*
-                #delimit ;
-                mata: tau = estTau(A_l, b_l, A_o, b_o, st_matrix("lambda_l"),
-                            st_matrix("lambda_o"),Yall, `ZetaLambda', `ZetaOmega',
-                            `mindecrease',`Ntr',`N', `Tobs',`Tpost');
-                #delimit cr
-
-                ereturn matrix lambda lambda
-                ereturn matrix omega  omega
-                matrix LAMBDA_L = e(lambda)
-                matrix LAMBDA_O = e(omega)
-                mata: st_local("tau", strofreal(tau))
-
-                mata: lambda_o=st_matrix("LAMBDA_O")
-                mata: results[i,1] = st_numscalar("time")
-                mata: results[i,2] = st_numscalar("obs")
-                mata: results[i,3] = tau
-                mata: i = i+1
             }
-            scalar drop time obs
-            mata: results[.,2] = results[.,2]/sum(results[.,2])
-            mata: ATT_b[`b',] = sum(results[.,2] :* results[.,3])							  			 
-            local ++b
         }
         mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_b)))
         mata: st_local("se", strofreal(se))
-        }
     }
 		
     *--------------------------------------------------------------------------*
@@ -888,5 +829,6 @@ mata:
         return(se_j)
     }
 end
+
 
 			
