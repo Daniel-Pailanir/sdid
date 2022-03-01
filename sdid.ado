@@ -355,7 +355,7 @@ else if "`adoption'"=="staggered" {
     qui levelsof `adoption' if `adoption'>0, local(trt)
     qui tab `adoption' if `adoption'>0
     local length = r(r) 
-    mata: results = J(`length', 3, .)
+    mata: Results = J(`length', 3, .)
 
     *filter data and SDiD
     mata: i = 1
@@ -370,6 +370,26 @@ else if "`adoption'"=="staggered" {
     rename `2' state
     rename `ii' statenumber
     rename `adoption' adoption
+    sort adoption
+    bys adoption: gen st=_n
+    qui count if adoption==0
+    local r = r(N)
+
+    qui levelsof adoption if adoption>0, local(adop)
+    foreach a of local adop {
+        qui count if adoption==`a'
+        local adop_`a'=r(N)
+    }
+
+    foreach a of local adop {
+        local rr=`r'+1
+        local ir=1
+        while (`ir'<=`adop_`a'') {
+            qui replace st=`rr' if adoption==`a' & st==`ir'
+            local ++rr
+            local ++ir
+        }
+    }
     tempfile resamplebase
     qui save `resamplebase'
 	****
@@ -417,7 +437,7 @@ else if "`adoption'"=="staggered" {
         qui save "`data'"
 
         qui levelsof `3', local(times)                
-        qui levelsof `3' if `3'<=`T0_`t'', local(timespre) 
+        qui levelsof `3' if `3'<=`T0_`t'', local(timespre_`t') 
         *matrix of control units
         qui keep if `tr'==0
         keep `1' `id' `3'
@@ -433,9 +453,7 @@ else if "`adoption'"=="staggered" {
         matrix Y = (Y0 \ Y1) 
         clear
         qui svmat Y
-        gen id = _n
-        mkmat Y1 id, matrix(matind) //matrix indicator
-        mata: matind=st_matrix("matind")		
+        gen id = _n		
         drop Y1
         local i=2
         foreach n of local times {
@@ -465,7 +483,7 @@ else if "`adoption'"=="staggered" {
         clear
         qui svmat Y, names(col)
     
-        local vr `timespre' promt
+        local vr `timespre_`t'' promt
         foreach tm of local vr {
             if "`tm'"=="promt" local n ""
             if "`tm'"!="promt" local n "t"
@@ -526,15 +544,15 @@ else if "`adoption'"=="staggered" {
         mata: lambda_o_`t' = st_matrix("LAMBDA_O_`t'")
         mata: lambda_l_`t' = st_matrix("LAMBDA_L_`t'")
 
-        mata: results[i,1] = st_numscalar("time")
-        mata: results[i,2] = st_numscalar("obs")
-        mata: results[i,3] = tau
+        mata: Results[i,1] = st_numscalar("time")
+        mata: Results[i,2] = st_numscalar("obs")
+        mata: Results[i,3] = tau
         mata: i = i+1
         use `base', clear
     }
     scalar drop time obs
-    mata: results[.,2] = results[.,2]/sum(results[.,2])
-    mata: ATT = sum(results[.,2] :* results[.,3])
+    mata: Results[.,2] = Results[.,2]/sum(Results[.,2])
+    mata: ATT = sum(Results[.,2] :* Results[.,3])
     mata: st_local("ATT", strofreal(ATT)) 	
 
     *--------------------------------------------------------------------------*
@@ -558,20 +576,19 @@ else if "`adoption'"=="staggered" {
         while `b'<=`B' {
             use `resamplebase', clear
             bsample , cluster(statenumber) idcluster(bootState)
+            tempfile resamplebase_b
+            qui save `resamplebase_b'
             qui count if adoption == 0
             local r1 = r(N)
             qui count if adoption != 0
             local r2 = r(N)
 
-			*di "`r1' `r2'"
-			
             if (`r1'==0 | `r2'==0) {
                 *di "all units are control or treated"
             }	
             else {
                 display in smcl "." _continue
                 if mod(`b',50)==0 dis "     `b'"
-            
                 qui levelsof adoption if adoption > 0, local(trt)
                 qui tab adoption      if adoption > 0
                 local length = r(r) 
@@ -579,17 +596,20 @@ else if "`adoption'"=="staggered" {
 
                 mata: i = 1
                 foreach t of local trt {
+                    scalar time=`t'
                     qui keep if adoption==`t' | adoption==0
-                    qui putmata ind1 = statenumber, replace
-                    qui putmata ind2 = statenumber if adoption==0, replace
-					
-					mata: ind1 = smerge(ind1, matind) //Yall matrix position: N0 and N1
-					mata: ind2 = smerge(ind2, matind) //Yall matrix position: N0
+                    qui putmata ind1 = st, replace
+                    qui putmata ind2 = st if adoption==0, replace
+
 					mata: ind1 = sort(ind1,1)
 					mata: ind2 = sort(ind2,1)
                     mata: Ntrb = length(ind1) - length(ind2) //treated units
-					mata: new_d=(Yall_2003[ind1,],ind1)					
+                    mata: N = length(ind1)                   //N units
+                    mata: st_local("Ntrb", strofreal(Ntrb)) 
+                    mata: st_local("N", strofreal(N)) 	
+                    mata: new_d=(Yall_`t'[ind1,],ind1)		
                     mata: st_matrix("new_d", new_d)
+
 					clear
 					qui svmat new_d, names(col)
                     local i=1
@@ -599,13 +619,12 @@ else if "`adoption'"=="staggered" {
                     }
                     local nv=`Tobs'+1
                     ren c`nv' id
-                    sort id
-									
+                    sort id	
                     egen promt = rowmean(t`Ttrmin_`t''-t`T')
-                    drop t`Ttrmin_`t''-t`T'
-                    local r=`N_`t''+1
+                    drop t`Ttrmin_`t''-t`T'					
+                    local r=`N'+1
+					
                     qui set obs `r'
-
                     forvalues tm=`Tmin'/`T0_`t'' {
                         qui sum     t`tm' if id>`N0_`t''
                         qui replace t`tm' = r(mean) in `r'
@@ -619,8 +638,7 @@ else if "`adoption'"=="staggered" {
                     *Matrix A & b : Lambda 
                     clear
                     qui svmat Y, names(col)
-    
-                    local vr `timespre' promt
+                    local vr `timespre_`t'' promt
                     foreach tm of local vr {
                         if "`tm'"=="promt" local n ""
                         if "`tm'"!="promt" local n "t"
@@ -660,14 +678,24 @@ else if "`adoption'"=="staggered" {
 					mata: Yallb=Yall_`t'[ind1,]				
 
                     #delimit ;
-                    mata: ATT_b[`b',] = estTau(A_lb, b_lb, A_ob, b_ob, 
+                    mata: tau = estTau(A_lb, b_lb, A_ob, b_ob, 
                                         st_matrix("LAMBDA_L_`t'")',l_o, 
                                         Yallb, `ZetaLambda_`t'', `ZetaOmega_`t'',
                                         `mindec_`t'',Ntrb,`N_`t'',`Tobs',`Tpost_`t'');
-                    #delimit cr           
-
-                    local ++b 
+                    #delimit cr
+					
+					scalar obs=`Ntrb'*`Tpost_`t''
+					
+                    mata: results[i,1] = st_numscalar("time")
+                    mata: results[i,2] = st_numscalar("obs")
+                    mata: results[i,3] = tau
+                    mata: i = i+1
+                    use `resamplebase_b', clear
                 }
+                scalar drop time obs
+                mata: results[.,2] = results[.,2]/sum(results[.,2])
+                mata: ATT_b[`b',] = sum(results[.,2] :* results[.,3])
+                local ++b
             }
         }
         mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_b)))
