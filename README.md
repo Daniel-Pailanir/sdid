@@ -19,8 +19,5 @@ sdid Y S T D, adoption(type) vce(method) seed() reps() controls()
 + reps(): repetitions for bootstrap and placebo se.
 + controls(): controls for Y adjusting. The procedure is proposed by xsynth in R.
 
-**_NOTE:_**  reps() option are required for bootstrap and placebo standard error.
-
-
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
