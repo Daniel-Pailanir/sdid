@@ -1,5 +1,4 @@
-# sdid
-Synthetic Difference-in-Differences: Stata package (Beta version)
+# sdid -- Synthetic Difference-in-Differences for Stata
 
 This Stata package implements the synthetic difference-in-differences estimation procedure, along with a range of inference procedures, following Arkhangelsky et al., (2021).  Arkhangelsky et al. provide a code implementation in R, with accompanying materials here: [synthdid](https://synth-inference.github.io/synthdid/). 
 Here we provide a native Stata implementation, principally written in Mata.  This package is currently under active development.
