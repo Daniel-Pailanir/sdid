@@ -12,6 +12,7 @@ version 13.0
     [
     seed(integer 0)
     reps(integer 50)
+    controls(varlist numeric)
     ]
     ;
 #delimit cr  
@@ -336,6 +337,24 @@ if "`adoption'"=="normal" {
 *------------------------------------------------------------------------------*
 else if "`adoption'"=="staggered" {
     tokenize `varlist'
+	
+    if "`controls'"!="" {
+        bys `2': egen dummytreat=mean(`4')
+        qui reg `1' `controls' i.`2' i.`3' if dummytreat==0
+		matrix betas=e(b)'
+		
+        local count_c=0
+        foreach v of varlist `controls' {
+            local count_c=`count_c'+1
+        }
+
+        matrix betas=betas[1..`count_c',1]
+        mkmat `controls', matrix(X)
+        matrix Xb=X*betas
+        svmat Xb
+        qui replace `1'=`1'-Xb1
+    }
+
     tempvar ii m adoption trt
     egen `ii' = group(`2')
     qui xtset `ii' `3'
@@ -362,7 +381,7 @@ else if "`adoption'"=="staggered" {
     tempfile base
     qui save `base'
 
-    ****
+    *data for bootstrap
     keep `2' `ii' `adoption'
     bys `2': gen N=_n
     qui keep if N==1
@@ -392,7 +411,7 @@ else if "`adoption'"=="staggered" {
     }
     tempfile resamplebase
     qui save `resamplebase'
-	****
+	*end data for bootstrap
 
     use `base', clear
     foreach t of local trt {
@@ -600,9 +619,8 @@ else if "`adoption'"=="staggered" {
                     qui keep if adoption==`t' | adoption==0
                     qui putmata ind1 = st, replace
                     qui putmata ind2 = st if adoption==0, replace
-
-					mata: ind1 = sort(ind1,1)
-					mata: ind2 = sort(ind2,1)
+                    mata: ind1 = sort(ind1,1)
+                    mata: ind2 = sort(ind2,1)
                     mata: Ntrb = length(ind1) - length(ind2) //treated units
                     mata: N = length(ind1)                   //N units
                     mata: st_local("Ntrb", strofreal(Ntrb)) 
@@ -610,8 +628,8 @@ else if "`adoption'"=="staggered" {
                     mata: new_d=(Yall_`t'[ind1,],ind1)		
                     mata: st_matrix("new_d", new_d)
 
-					clear
-					qui svmat new_d, names(col)
+                    clear
+                    qui svmat new_d, names(col)
                     local i=1
                     foreach n of local times {
                         ren c`i' t`n'
@@ -675,7 +693,7 @@ else if "`adoption'"=="staggered" {
                     mata: b_ob = st_matrix("b_ob")
 					
                     mata: l_o = sum_norm(lambda_o_`t''[,ind2]) //actualizamos w omega
-					mata: Yallb=Yall_`t'[ind1,]				
+                    mata: Yallb=Yall_`t'[ind1,]				
 
                     #delimit ;
                     mata: tau = estTau(A_lb, b_lb, A_ob, b_ob, 
@@ -684,7 +702,7 @@ else if "`adoption'"=="staggered" {
                                         `mindec_`t'',Ntrb,`N_`t'',`Tobs',`Tpost_`t'');
                     #delimit cr
 					
-					scalar obs=`Ntrb'*`Tpost_`t''
+                    scalar obs=`Ntrb'*`Tpost_`t''
 					
                     mata: results[i,1] = st_numscalar("time")
                     mata: results[i,2] = st_numscalar("obs")
@@ -857,6 +875,4 @@ mata:
         return(se_j)
     }
 end
-
-
 			
