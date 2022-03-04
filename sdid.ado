@@ -343,7 +343,7 @@ else if "`adoption'"=="staggered" {
         qui reg `1' `controls' i.`2' i.`3' if dummytreat==0
         matrix betas=e(b)'
 
-        unab conts: `countrols'
+        unab conts: `controls'
         local count_c: word count `conts'
 
         matrix betas=betas[1..`count_c',1]
