@@ -97,7 +97,7 @@ if "`adoption'"=="normal" {
     mkmat _all, matrix(Y0)
     
     *matrix of treated units
-    use `data', clear
+    qui use `data', clear
     qui keep if `tr'==1
     keep `1' `id' `3'
     qui reshape wide `1', i(`id') j(`3')
@@ -341,12 +341,10 @@ else if "`adoption'"=="staggered" {
     if "`controls'"!="" {
         bys `2': egen dummytreat=mean(`4')
         qui reg `1' `controls' i.`2' i.`3' if dummytreat==0
-		matrix betas=e(b)'
-		
-        local count_c=0
-        foreach v of varlist `controls' {
-            local count_c=`count_c'+1
-        }
+        matrix betas=e(b)'
+
+        unab conts: `countrols'
+        local count_c: word count `conts'
 
         matrix betas=betas[1..`count_c',1]
         mkmat `controls', matrix(X)
@@ -413,7 +411,7 @@ else if "`adoption'"=="staggered" {
     qui save `resamplebase'
 	*end data for bootstrap
 
-    use `base', clear
+    qui use `base', clear
     foreach t of local trt {
         tempvar id id2 diff tr post_treat
         qui keep if `adoption'==`t' | `adoption'==0
@@ -463,7 +461,7 @@ else if "`adoption'"=="staggered" {
         qui reshape wide `1', i(`id') j(`3')
         mkmat _all, matrix(Y0)
         *matrix of treated units
-        use `data', clear
+        qui use `data', clear
         qui keep if `tr'==1
         keep `1' `id' `3'
         qui reshape wide `1', i(`id') j(`3')
@@ -567,7 +565,7 @@ else if "`adoption'"=="staggered" {
         mata: Results[i,2] = st_numscalar("obs")
         mata: Results[i,3] = tau
         mata: i = i+1
-        use `base', clear
+        qui use `base', clear
     }
     scalar drop time obs
     mata: Results[.,2] = Results[.,2]/sum(Results[.,2])
@@ -593,7 +591,7 @@ else if "`adoption'"=="staggered" {
 
         clear
         while `b'<=`B' {
-            use `resamplebase', clear
+            qui use `resamplebase', clear
             bsample , cluster(statenumber) idcluster(bootState)
             tempfile resamplebase_b
             qui save `resamplebase_b'
@@ -708,7 +706,7 @@ else if "`adoption'"=="staggered" {
                     mata: results[i,2] = st_numscalar("obs")
                     mata: results[i,3] = tau
                     mata: i = i+1
-                    use `resamplebase_b', clear
+                    qui use `resamplebase_b', clear
                 }
                 scalar drop time obs
                 mata: results[.,2] = results[.,2]/sum(results[.,2])
@@ -732,8 +730,10 @@ else if "`adoption'"=="staggered" {
     else if "`vce'"=="jackknife" {
         dis "Standard error estimation under construction for staggered adoption"
     }
+    ereturn local se `se' 
+    ereturn local ATT `ATT'
 	
-	*Display results
+    *Display results
     di as text " "
     di as text "{c TLC}{hline 8}{c TT}{hline 11}{c TRC}"
     di as text "{c |} {bf: ATT}   {c |} " as result %9.5f `ATT'  as text " {c |}"
