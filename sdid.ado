@@ -337,7 +337,8 @@ if "`adoption'"=="normal" {
 *------------------------------------------------------------------------------*
 else if "`adoption'"=="staggered" {
     tokenize `varlist'
-	
+
+    ***ALL BELOW WILL BE REPLACED BY synthdid MATA FUNTION (up to line 574)
     if "`controls'"!="" {
         bys `2': egen dummytreat=mean(`4')
         qui reg `1' `controls' i.`2' i.`3' if dummytreat==0
@@ -409,7 +410,7 @@ else if "`adoption'"=="staggered" {
     }
     tempfile resamplebase
     qui save `resamplebase'
-	*end data for bootstrap
+    *end data for bootstrap
 
     qui use `base', clear
     foreach t of local trt {
@@ -749,6 +750,87 @@ end
 *------------------------------------------------------------------------------*
 *Mata functions
 *------------------------------------------------------------------------------*
+*Main function (synthdid)
+*Below assumes data is a matrix with:
+* (1) y variable
+* (2) group variable
+* (3) time variable
+* (4) treatment variable
+* (5) indicator if unit ever treated
+* (6) indicator of year treated (if treated)
+* (7+) any controls
+
+***STILL UNDER CONSTRUCTION
+mata:
+    real scalar synthdid(matrix data) {
+        data  = sort(data, (2,3))
+        units = panelsetup(data,2)
+        NT = panelstats(units)[,3]
+        treat=panelsum(data[.,(2,4)],units)
+        treat[,1]=treat[,1]/NT
+        treat[,2]=1*(treat[,2]:>=1) + 0*(treat[,2]:==1)
+        controls = selectindex(treat[,2]:==1)
+
+        //Adjust for controls in xysnth way
+        if (cols(data)>6) {
+            K = cols(data)
+            cdat = data[selectindex(data[,5]:==0),(1,7..K)]
+            cdat = select(cdat, rowmissing(cdat):==0)
+            X = cdat[.,2::cols(cdat)]
+            y = cdat[.,1]
+            // Run regression with subsample
+            XX = quadcross(X,1 , X,1)
+            Xy = quadcross(X,1 , y,0)
+            beta = invsym(XX)*Xy
+            X = (J(rows(data),1,1), data[.,7::K])
+            data[,1]=data[.,1]-X*beta
+        }
+        //Find years which change treatment
+        trt = select(uniqrows(data[,6]),uniqrows(data[,6]):!=.)
+        for(yr=1;yr<=rows(trt);++yr) {
+            trt[yr]
+            cond = data[,6]:==trt[yr]
+            yNtr = sum(cond)
+            cond = cond + data[,6]:==.
+
+            ydata = select(data,cond)
+            yunits = panelsetup(ydata,2)
+            yNT = panelstats(yunits)[,3]
+            yNG = panelstats(yunits)[,1]
+            yN  = panelstats(yunits)[,2]
+            yNtr = yNtr/yNT
+            yTpost = max(ydata[,3])-trt[yr]+1
+            yTpost
+
+            //Calculate Zeta
+            ndiff = yNG*(yNT-1)
+            diff = J(ndiff,1,.)
+            diff2 = J(yN,1,.)
+            j = 1
+            for(i=1; i<=yN; i++) {
+                lag = i-1
+                if (mod(lag,yNT)!=0) {
+                    diff[j] = ydata[i,1]-ydata[lag,1]
+                    ++j
+                }
+            }
+            sig_t = sqrt(variance(diff))
+            EtaLambda = 1e-6
+            EtaOmega = (yNtr*yTpost)^(1/4)
+            yZetaOmega  = EtaOmega*sig_t
+            yZetaLambda = EtaLambda*sig_t
+
+            //For below, rowshape and colshape will be very useful
+            //  (eg see below, just need to add in IDs)
+            cols(rowshape(ydata[.,1],yNG))
+        }
+
+        tau = 0
+        return(tau)
+    }
+end
+
+
 *Estimation
 mata:
     real scalar estTau(matrix A_l, matrix b_l, matrix A_o, matrix b_o,
