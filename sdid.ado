@@ -29,7 +29,6 @@ To do:
 * (0) Error checks in parsing
 *------------------------------------------------------------------------------*
 
-
 preserve
 *------------------------------------------------------------------------------*
 * (1) ONE TIME ADOPTION
@@ -336,19 +335,31 @@ if "`adoption'"=="normal" {
 *STAGGERED ADOPTION
 *------------------------------------------------------------------------------*
 else if "`adoption'"=="staggered" {
-    tokenize `varlist'
 
+    **FOLLOWING 10 lines are the new implementation (so just need to bootstrap this)
+    tokenize `varlist'
+    tempvar treated
+    tempvar ty
+    tempvar tyear
+    qui bys `2': egen `treated' = max(`4')
+    qui gen `ty' = `3' if `4'==1
+    qui by `2': egen `tyear' = min(`ty')
+    unab conts: `controls'
+    mata: data = st_data(.,("`1' `2' `3' `4' `treated' `tyear' `conts'"))
+    mata: ATT = synthdid(data)
+    
+    
     ***ALL BELOW WILL BE REPLACED BY synthdid MATA FUNTION (up to line 574)
     if "`controls'"!="" {
         bys `2': egen dummytreat=mean(`4')
         qui reg `1' `controls' i.`2' i.`3' if dummytreat==0
         matrix betas=e(b)'
-
+    
         unab conts: `controls'
         local count_c: word count `conts'
 
         matrix betas=betas[1..`count_c',1]
-        mkmat `controls', matrix(X)
+    mkmat `controls', matrix(X)
         matrix Xb=X*betas
         svmat Xb
         qui replace `1'=`1'-Xb1
@@ -759,11 +770,9 @@ end
 * (5) indicator if unit ever treated
 * (6) indicator of year treated (if treated)
 * (7+) any controls
-
-***STILL UNDER CONSTRUCTION
 mata:
     real scalar synthdid(matrix data) {
-        data  = sort(data, (2,3))
+        data  = sort(data, (5,2,3))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
         treat=panelsum(data[.,(2,4)],units)
@@ -774,24 +783,44 @@ mata:
         //Adjust for controls in xysnth way
         if (cols(data)>6) {
             K = cols(data)
-            cdat = data[selectindex(data[,5]:==0),(1,7..K)]
+            cdat = data[selectindex(data[,5]:==0),(1,2,3,7..K)]
             cdat = select(cdat, rowmissing(cdat):==0)
-            X = cdat[.,2::cols(cdat)]
+            //CAN THIS BE OPTIMIZED FOR FIXED EFFECTS???
+            X = cdat[.,4::cols(cdat)]
+            NX = cols(X)
+            yearFEs = uniqrows(cdat[.,3])
+            for (fe=1;fe<=rows(yearFEs);fe++) {
+                fevar = cdat[.,3]:==yearFEs[fe]
+                X = (X,fevar)
+            }
+            unitFEs = uniqrows(cdat[.,2])
+            for (fe=1;fe<=rows(unitFEs);fe++) {
+                fevar = cdat[.,2]:==unitFEs[fe]
+                X = (X,fevar)
+            }            
             y = cdat[.,1]
-            // Run regression with subsample
+            // Replace this line below for quadcross or whatever is fastest
             XX = quadcross(X,1 , X,1)
             Xy = quadcross(X,1 , y,0)
             beta = invsym(XX)*Xy
-            X = (J(rows(data),1,1), data[.,7::K])
+            beta = beta[1::NX]
+            X = data[.,7::K]
             data[,1]=data[.,1]-X*beta
         }
+
         //Find years which change treatment
         trt = select(uniqrows(data[,6]),uniqrows(data[,6]):!=.)
+        //Iterate over years, calculating each estimate
+        tau    = J(rows(trt),1,.)
+        tau_wt = J(1,rows(trt),.)
         for(yr=1;yr<=rows(trt);++yr) {
-            trt[yr]
-            cond = data[,6]:==trt[yr]
-            yNtr = sum(cond)
-            cond = cond + data[,6]:==.
+            //trt[yr]
+            cond1 = data[,6]:==trt[yr]
+            cond2 = data[,6]:==.
+            cond = cond1+cond2
+            yNtr = sum(cond1)
+            yNco = sum(cond2)
+            //cond = cond + data[,6]:==.
 
             ydata = select(data,cond)
             yunits = panelsetup(ydata,2)
@@ -799,36 +828,66 @@ mata:
             yNG = panelstats(yunits)[,1]
             yN  = panelstats(yunits)[,2]
             yNtr = yNtr/yNT
+            yNco = yNco/yNT
             yTpost = max(ydata[,3])-trt[yr]+1
-            yTpost
+
+            pretreat = select(uniqrows(data[,3]),uniqrows(data[,3]):<trt[yr])
+            Npre  = rows(pretreat)
+            Npost = yNT-Npre
 
             //Calculate Zeta
             ndiff = yNG*(yNT-1)
-            diff = J(ndiff,1,.)
-            diff2 = J(yN,1,.)
-            j = 1
-            for(i=1; i<=yN; i++) {
-                lag = i-1
-                if (mod(lag,yNT)!=0) {
-                    diff[j] = ydata[i,1]-ydata[lag,1]
-                    ++j
-                }
-            }
-            sig_t = sqrt(variance(diff))
+            ylag = ydata[1..(yN-1),1]
+            ylag = (. \ ylag)
+            //ALL BELOW IS DOING THIS
+
+            diff = ydata[.,1]-ylag
+
+            first = mod(0::(yN-1),yNT):==0
+            postt = ydata[,3]:>=trt[yr]
+            dropc = first+postt+ydata[,5]
+            prediff = select(diff,dropc:==0)
+            sig_t = sqrt(variance(prediff))
+            //XX DC: Etas are fine
             EtaLambda = 1e-6
             EtaOmega = (yNtr*yTpost)^(1/4)
             yZetaOmega  = EtaOmega*sig_t
             yZetaLambda = EtaLambda*sig_t
+            //Generate Y matrices
+            ids = uniqrows(ydata[.,2])
+            ytreat = ydata[,6]:==trt[yr]
+            ytreat=panelsum(ytreat,yunits)
+            ytreat=ytreat/yNT
 
-            //For below, rowshape and colshape will be very useful
-            //  (eg see below, just need to add in IDs)
-            cols(rowshape(ydata[.,1],yNG))
+            Y = rowshape(ydata[.,1],yNG)
+            Y0 = select(Y,ytreat:==0)
+            Y1 = select(Y,ytreat:==1)
+            //Generate average of outcomes for each unit over time
+            promt = mean(Y0[,(Npre+1)::yNT]')'
+            //Calculate input matrices (pre-treatment and averages)
+            A_l = Y0[,1..Npre]:-mean(Y0[,1..Npre])
+            b_l = promt:-mean(promt)
+            A_o = Y0[,1..Npre]':-mean(Y0[,1..Npre]')
+            //b_o = Y1[.,1..Npre]':-mean(Y1[.,1..Npre]')
+            b_o = mean(Y1[.,1..Npre])':-mean(mean(Y1[.,1..Npre])')
+
+
+            //Calculate Tau for t
+            lambda_l = J(1,cols(A_l),1/cols(A_l))
+            lambda_o = J(1,cols(A_o),1/cols(A_o))
+            mindec = (1e-5*sig_t)^2
+            
+            tau[yr] = estTau(A_l,b_l,A_o,b_o, lambda_l,lambda_o,
+                             Y,yZetaLambda,yZetaOmega,mindec,yNtr,yNG,yNT,Npost)
+            tau_wt[yr] = yNtr*Npost
         }
-
-        tau = 0
-        return(tau)
+        tau_wt = tau_wt/sum(tau_wt')
+        ATT = tau_wt*tau
+        ATT
+        return(ATT)
     }
 end
+
 
 
 *Estimation
