@@ -11,10 +11,9 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 
 ## Syntax
 ```s
-sdid Y S T D, adoption(type) vce(method) seed() reps() controls()
+sdid Y S T D, vce(method) seed(#) reps(#) controls(varlist)
 ```
-+ adoption(): _**normal**_ and _**staggered**_ adoption; _**normal**_  refers when all units receive the treatment the same period and _**staggered**_ when the treatment is received in different periods of time. It is recommended and can be very helpful to read the appendix of the paper and the repo staggered treatment adoption in R [staggered_adoption_synthdid](https://github.com/zachporreca/staggered_adoption_synthdid).
-+ vce(): bootstrap, jackknife and placebo standard error (trial version of bootstrap is avaible now for _**staggered**_ version).
++ vce(): bootstrap, jackknife and placebo standard error.
 + seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
 + controls(): controls for Y adjusting. The procedure is proposed by xsynth in R.
