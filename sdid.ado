@@ -37,18 +37,20 @@ To do:
 **FOLLOWING 10 lines are the new implementation (so just need to bootstrap this)
 **We could potentially move generation of treated and tyear into mata function...
 tokenize `varlist'
-tempvar treated
-tempvar ty
-tempvar tyear
-qui bys `2': egen `treated' = max(`4')
+tempvar treated ty tyear n
 qui gen `ty' = `3' if `4'==1
-qui by `2': egen `tyear' = min(`ty')
+qui bys `2': egen `treated' = max(`4')
+qui by  `2': egen `tyear'   = min(`ty')
+sort `3' `treated' `2'
+gen `n'=_n
+qui sum `3'
+qui putmata ori_id=`2' ori_pos=`n' if `3'==r(min) & `tyear'==., replace
+
 if "`controls'"!="" unab conts: `controls'
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
 mata: ATT = synthdid(data, 0, ., .)
 mata: st_local("ATT", strofreal(ATT.Tau))
-mata: ATT.Tau
 mata: OMEGA = ATT.Omega
 mata: LAMBDA = ATT.Lambda
 
@@ -85,8 +87,14 @@ if "`vce'"=="bootstrap" {
         else {
             display in smcl "." _continue
             if mod(`b',50)==0 dis "     `b'"
+
+            qui sum `3'
+            qui putmata bsam_id=`2' if `tyear'==. & `3'==r(min), replace
+            mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
+            mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
+
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATTB = synthdid(data,1,OMEGA,LAMBDA)
+            mata: ATTB = synthdid(data,1,OMEGAB,LAMBDA)
             mata: ATT_b[`b',] = ATTB.Tau
             local ++b
         }
@@ -255,19 +263,9 @@ mata:
 
             //Calculate Tau for t
             if (inference==1) {
-                //lambda_l = J(1,cols(A_l),1/cols(A_l))
                 lambda_l = select(LAMBDA'[.,1::Npre],LAMBDA'[,rows(LAMBDA)]:==trt[yr])
-                lambda_o = J(1,cols(A_o),1/cols(A_o))
-                //   THIS IS UNDER CONSTRUCTION (replace below two lines for pre-specified)
-                //Include state IDs for selection
-                //oI1 = OMEGA'[,rows(OMEGA)]:==trt[yr]
-                //oI2 = OMEGA'[,rows(OMEGA)]:==.
-                //omegaInput = oI1+oI2
-                //l_o=select(OMEGA'[,1::(rows(OMEGA)-1)],omegaInput)'
-                //l_o
-                //ind2 = select(ydata[,3],(ydata[,6]:==0 :& ydata[,4]:==min(ydata[,4])))
-                //lambda_o = sum_norm(l_o[,ind2]) //update so prior weights sum to 1
-                //lambda_o
+                l_o = select(OMEGA'[.,1::yNco],OMEGA'[,rows(OMEGA)]:==trt[yr])
+                lambda_o = sum_norm(l_o) //update so prior weights sum to 1
             }
             else {
                 lambda_l = J(1,cols(A_l),1/cols(A_l))
