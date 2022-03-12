@@ -44,7 +44,8 @@ qui by  `2': egen `tyear'   = min(`ty')
 sort `3' `treated' `2'
 gen `n'=_n
 qui sum `3'
-qui putmata ori_id=`2' ori_pos=`n' if `3'==r(min) & `tyear'==., replace
+local mint=r(min)
+qui putmata ori_id=`2' ori_pos=`n' if `3'==`mint' & `tyear'==., replace
 
 if "`controls'"!="" unab conts: `controls'
 **IDs (`2') go in twice here because we are not resampling
@@ -62,7 +63,7 @@ if "`vce'"=="bootstrap" {
     local b = 1
     local B = `reps'
     mata: ATT_b = J(`B', 1, .)
-
+	
     /*if (`Ntr'==1)==1 {
         di as err "It is not possible to do Bootstrap se because there is only one treated unit"
         exit 198
@@ -88,8 +89,7 @@ if "`vce'"=="bootstrap" {
             display in smcl "." _continue
             if mod(`b',50)==0 dis "     `b'"
 
-            qui sum `3'
-            qui putmata bsam_id=`2' if `tyear'==. & `3'==r(min), replace
+            qui putmata bsam_id=`2' if `tyear'==. & `3'==`mint', replace
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
 
@@ -101,16 +101,68 @@ if "`vce'"=="bootstrap" {
         restore
     }
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_b)))
-    mata: st_local("se", strofreal(se))
-        
+    mata: st_local("se", strofreal(se)) 
 }
     	
 *--------------------------------------------------------------------------*
 *Standard error: placebo
 *--------------------------------------------------------------------------*
 else if "`vce'"=="placebo" {
-    dis "Standard error estimation under construction for staggered adoption"
+    set seed `seed'
+    local b = 1
+    local B = `reps'
+    mata: ATT_p = J(`B', 1, .)
+	
+	qui count if `treated'==0 & `3'==`mint' //count control units
+	local co=r(N)
+	qui count if `treated'==1 & `3'==`mint' //count treated units (total)
+	local tr=r(N)
+    local newtr=`co'-`tr'+1                //start of treated units
+    mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
+	
+    /*if (`tr'>=`co')==1 {
+        di as err "It is not possible to do Placebo se. Must have more controls than treated units."
+        exit 198
+    }*/
+	
+    dis "Placebo replications (`reps'). This may take some time."
+    dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
+	
+    while `b'<=`B' {
+        preserve
+        keep `1' `2' `3' `4' `tyear' `conts'
+        tempvar r rand id
+        qui gen `r'=runiform() in 1/`co'
+        bys `2': egen `rand'=sum(`r')
+        qui drop if `tyear'!=.        //drop treated units
+        egen `id' = group(`rand')     //gen numeric order by runiform variable
+		
+        local i=1
+        forvalues y=`newtr'/`co' {
+            qui replace `tyear'=tryears[`i',1] if `id'==`y'
+            local ++i
+        }
+
+		qui replace `4'=1 if `3'>=`tyear'
+        bys `2': egen `treated' = max(`4')
+		
+        display in smcl "." _continue
+        if mod(`b',50)==0 dis "     `b'"
+			
+        qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
+        mata: indicator=smerge(psam_id, (ori_id, ori_pos))
+        mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]		
+		
+        mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
+        mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA)
+        mata: ATT_p[`b',] = ATTP.Tau
+		local ++b
+        restore
+    }
+    mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_p)))
+    mata: st_local("se", strofreal(se))
 }
+
 *--------------------------------------------------------------------------*
 *Standard error: jackknife
 *--------------------------------------------------------------------------*
@@ -404,3 +456,4 @@ mata:
         return(se_j)
     }
 end
+
