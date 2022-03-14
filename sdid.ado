@@ -13,6 +13,7 @@ version 13.0
     seed(integer 0)
     reps(integer 50)
     controls(varlist numeric)
+    graph(string)
     ]
     ;
 #delimit cr  
@@ -54,6 +55,19 @@ mata: ATT = synthdid(data, 0, ., .)
 mata: st_local("ATT", strofreal(ATT.Tau))
 mata: OMEGA = ATT.Omega
 mata: LAMBDA = ATT.Lambda
+
+
+*some local
+qui count if `3'==`mint'                 //total units
+local N=r(N)
+qui count if `treated'==0 & `3'==`mint' //control units
+local co=r(N)
+qui count if `treated'==1 & `3'==`mint' //treated units (total)
+local tr=r(N)
+local newtr=`co'-`tr'+1                 //start of treated units
+qui tab `3'                             //T
+local T=r(r)
+mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
 
 *--------------------------------------------------------------------------*
 *Standard error: bootstrap
@@ -112,13 +126,6 @@ else if "`vce'"=="placebo" {
     local b = 1
     local B = `reps'
     mata: ATT_p = J(`B', 1, .)
-	
-	qui count if `treated'==0 & `3'==`mint' //count control units
-	local co=r(N)
-	qui count if `treated'==1 & `3'==`mint' //count treated units (total)
-	local tr=r(N)
-    local newtr=`co'-`tr'+1                //start of treated units
-    mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
 	
     /*if (`tr'>=`co')==1 {
         di as err "It is not possible to do Placebo se. Must have more controls than treated units."
