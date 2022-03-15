@@ -10,7 +10,7 @@ version 13.0
 #delimit ;
     syntax varlist(min=4 numeric), vce(string) 
     [
-    seed(integer 0)
+    seed(numlist integer >0 max=1)
     reps(integer 50)
     controls(varlist numeric)
     graph(string)
@@ -73,7 +73,7 @@ mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption value
 *Standard error: bootstrap
 *--------------------------------------------------------------------------*
 if "`vce'"=="bootstrap" {
-    set seed `seed'
+    cap set seed `seed'
     local b = 1
     local B = `reps'
     mata: ATT_b = J(`B', 1, .)
@@ -122,7 +122,7 @@ if "`vce'"=="bootstrap" {
 *Standard error: placebo
 *--------------------------------------------------------------------------*
 else if "`vce'"=="placebo" {
-    set seed `seed'
+    cap set seed `seed'
     local b = 1
     local B = `reps'
     mata: ATT_p = J(`B', 1, .)
