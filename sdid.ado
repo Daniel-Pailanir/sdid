@@ -1,4 +1,4 @@
-*! sdid: Synthetic Difference in Difference
+*! sdid: Synthetic Difference in Differences
 *! Version 0.1.0 January 25, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
@@ -56,7 +56,6 @@ mata: st_local("ATT", strofreal(ATT.Tau))
 mata: OMEGA = ATT.Omega
 mata: LAMBDA = ATT.Lambda
 
-
 *some local
 qui count if `3'==`mint'                 //total units
 local N=r(N)
@@ -68,6 +67,7 @@ local newtr=`co'-`tr'+1                 //start of treated units
 qui tab `3'                             //T
 local T=r(r)
 mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
+qui levelsof `tyear', local(tryear) //adoption local
 
 *--------------------------------------------------------------------------*
 *Standard error: bootstrap
@@ -175,7 +175,9 @@ else if "`vce'"=="placebo" {
 *--------------------------------------------------------------------------*
 else if "`vce'"=="jackknife" {
     dis "Standard error estimation under construction for staggered adoption"
+    local se 0
 }
+
 ereturn local se `se' 
 ereturn local ATT `ATT'
     
@@ -185,6 +187,123 @@ di as text "{c TLC}{hline 8}{c TT}{hline 11}{c TRC}"
 di as text "{c |} {bf: ATT}   {c |} " as result %9.5f `ATT'  as text " {c |}"
 di as text "{c |} {bf: se}    {c |} " as result %9.5f `se' as text " {c |}"
 di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"   	
+
+*--------------------------------------------------------------------------*
+*Graphs
+*--------------------------------------------------------------------------*
+if "`graph'"=="on" {
+    qui tab `tyear'
+    local trN=r(r)
+    mata: year=LAMBDA[1::`T',(`trN'+1)]
+    mata: id=OMEGA[1::`co',(`trN'+1)]
+
+	foreach time of local tryear {
+        preserve
+        mata: weight_lambda=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
+        clear
+        getmata weight_lambda year, force
+        tempfile lambda_weights_`time'
+        qui save `lambda_weights_`time''
+        clear
+        mata: weight_omega=select(OMEGA[1::`co',],OMEGA[rows(OMEGA),]:==`time')
+        getmata weight_omega id, force
+        qui ren id `2'
+        tempfile omega_weights_`time'
+        qui save `omega_weights_`time''
+        restore
+    }
+	
+    local TAU=1
+    foreach time of local tryear {
+        preserve
+        qui keep if `tyear'==. | `tyear'==`time'
+        qui levelsof `2' if `tyear'==`time', local(tr_unit)
+        qui levelsof `2', local(id2)
+		qui count if `tyear'==`time' & `3'==`time'
+		local Ntr=r(N)
+        qui merge m:1 `3' using `lambda_weights_`time'', nogen
+        qui merge m:1 `2' using `omega_weights_`time'' , nogen		
+
+        mata: A=J(`N',5,.)
+        local i=1
+
+        foreach s of local id2 {
+            qui sum `1' if `3'>=`time' & `2'==`s'
+            mata: A[`i',1]=`r(mean)'
+            local ++i
+        }
+
+        tempvar Y_lambda
+        qui gen `Y_lambda'=`1'*weight_lambda		
+
+        local i=1
+        foreach s of local id2 {
+            qui sum `Y_lambda' if `3'<`time' & `2'==`s'
+            mata: A[`i',2]=`r(mean)'*`r(N)'
+            mata: A[`i',4]=`s'
+            local ++i
+        }
+
+        mata: A[,3]=A[,1]-A[,2]
+        mata: delta_tr=J(1,`Ntr',.)
+        local i=1
+        foreach s of local tr_unit {
+            mata: delta_tr[1,`i']=select(A[,3],A[,4]:==`s')
+            local ++i
+        }	
+
+        mata: A[,5]=J(`N',1,sum(delta_tr)/`Ntr')-A[,3]
+        clear
+        mata: difference=A[,5]
+        mata: state=A[,4]
+        mata: omega=weight_omega
+        getmata difference state, force
+       
+        local tr_u `tr_u' `tr_unit' 
+        foreach s of local tr_u {
+            qui drop if state==`s'
+        }
+
+        getmata omega, force
+        qui drop if state==.
+        gen order=_n
+        egen order2=axis(order), label(state) //from egenmore ssc install egenmore
+        mata: st_local("tau", strofreal(ATT.tau[`TAU',]))
+
+        #delimit ;
+        twoway scatter diff order2 if omega!=0 [aw=omega], msize(tiny)
+            || scatter diff order2 if omega==0, m(X) 
+            xlabel(1(1)`co', angle(vertical) labs(tiny) valuelabel)
+            yline(`tau', lc(red)) name(g1_`time', replace)
+            legend(off);
+        #delimit cr
+        restore
+        local ++TAU
+		
+        preserve
+        qui merge m:1 `2' using `omega_weights_`time'' , nogen		
+        qui keep if `tyear'==. | `tyear'==`time'
+        tempvar Y_omega tipo
+        qui drop if weight_omega==0
+        qui gen `Y_omega'=`1' if weight_omega==.
+        qui replace `Y_omega'=`1'*weight_omega if weight_omega!=.
+        qui gen `tipo'="Control" if weight_omega!=.
+        qui replace `tipo'="Treated" if weight_omega==.
+        keep `2' `3' `Y_omega' `tipo'
+        qui reshape wide `Y_omega', i(`2' `3') j(`tipo') string
+        collapse (sum) `Y_omega'Control (mean) `Y_omega'Treated,  by(`3')
+
+        #delimit ;
+        twoway line `Y_omega'Control `3'
+            || line `Y_omega'Treated `3',
+            xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2)) 
+            name(g2_`time', replace);
+        #delimit cr
+		restore
+    }
+}
+
+
 
 end
 
@@ -196,6 +315,7 @@ mata:
 struct results {
     real matrix Omega
     real matrix Lambda
+    real matrix tau
     real scalar Tau
 }
 end
@@ -360,6 +480,7 @@ mata:
         struct results scalar r
         r.Omega = Omega
         r.Lambda = Lambda
+        r.tau = tau
         r.Tau = ATT
         return(r)
 }
