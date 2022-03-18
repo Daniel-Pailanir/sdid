@@ -17,7 +17,7 @@ sdid Y S T D, vce(method) seed(#) reps(#) controls(varlist)
 + seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
 + controls(): controls for Y adjusting. The procedure is proposed by xsynth in R.
-+ graph(): _on_ for display graph in figure 1 from Arkhangelsky et al.
++ graph(): "_on_" for display graph in figure 1 from Arkhangelsky et al.
 
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
