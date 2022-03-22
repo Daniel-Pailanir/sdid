@@ -11,7 +11,7 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 
 ## Syntax
 ```s
-sdid Y S T D, vce(method) seed(#) reps(#) controls(varlist) graph(on)
+sdid Y S T D, vce(method) seed(#) reps(#) controls(varlist) control_type() graph(on)
 ```
 + vce(): bootstrap, jackknife and placebo standard error.
 + seed(): seed define for pseudo-random numbers.
