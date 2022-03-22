@@ -18,7 +18,7 @@ sdid Y S T D, vce(method) seed(#) reps(#) controls(varlist) graph(on) g1_opt(str
 + reps(): repetitions for bootstrap and placebo se.
 + controls(  varlist [, method]): controls included to adjust Y.  A varlist of controls should be included, and optionally an option for the method used to adjust.  This can be R in which case it follows the method proposed by Arkhangelsky et al., or xsynth, in which case it follows the procedure proposed by xsynth in R.  Where method is not specified, R is used as default.
 + graph(): "_on_" for display graph in figure 1 from Arkhangelsky et al.
-+ g1_opt() and g2_opt(): Options requested have to follow the syntax of Stata twoway_options.
++ g1_opt() and g2_opt(): option to modify the appearance of that graphs. Options requested have to follow the syntax of Stata twoway_options.
 
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
