@@ -13,6 +13,7 @@ version 13.0
     seed(numlist integer >0 max=1)
     reps(integer 50)
     controls(varlist numeric)
+    control_type(string)
     graph(string)
     ]
     ;
@@ -49,9 +50,21 @@ local mint=r(min)
 qui putmata ori_id=`2' ori_pos=`n' if `3'==`mint' & `tyear'==., replace
 
 if "`controls'"!="" unab conts: `controls'
+
+*for controls option
+if "`control_type'"=="" {
+    local control_opt=0
+}
+if "`control_type'"=="xsynth" {
+    local control_opt=1
+}
+if "`control_type'"=="R" {
+    local control_opt=2
+}
+
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-mata: ATT = synthdid(data, 0, ., .)
+mata: ATT = synthdid(data, 0, ., ., `control_opt')
 mata: st_local("ATT", strofreal(ATT.Tau))
 mata: OMEGA = ATT.Omega
 mata: LAMBDA = ATT.Lambda
@@ -108,7 +121,7 @@ if "`vce'"=="bootstrap" {
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
 
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATTB = synthdid(data,1,OMEGAB,LAMBDA)
+            mata: ATTB = synthdid(data,1,OMEGAB,LAMBDA,`control_opt')
             mata: ATT_b[`b',] = ATTB.Tau
             local ++b
         }
@@ -161,7 +174,7 @@ else if "`vce'"=="placebo" {
         mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]		
 		
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-        mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA)
+        mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA,`control_opt')
         mata: ATT_p[`b',] = ATTP.Tau
 		local ++b
         restore
@@ -176,8 +189,8 @@ else if "`vce'"=="placebo" {
 else if "`vce'"=="jackknife" {
     dis "Standard error estimation under construction for staggered adoption"
     local se 0
-}
 
+}
 ereturn local se `se' 
 ereturn local ATT `ATT'
     
@@ -188,6 +201,7 @@ di as text "{c |} {bf: ATT}   {c |} " as result %9.5f `ATT'  as text " {c |}"
 di as text "{c |} {bf: se}    {c |} " as result %9.5f `se' as text " {c |}"
 di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"   	
 
+
 *--------------------------------------------------------------------------*
 *Graphs
 *--------------------------------------------------------------------------*
@@ -196,7 +210,7 @@ if "`graph'"=="on" {
     local trN=r(r)
     mata: year=LAMBDA[1::`T',(`trN'+1)]
     mata: id=OMEGA[1::`co',(`trN'+1)]
-
+	
 	foreach time of local tryear {
         preserve
         mata: weight_lambda=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
@@ -212,7 +226,7 @@ if "`graph'"=="on" {
         qui save `omega_weights_`time''
         restore
     }
-	
+		
     local TAU=1
     foreach time of local tryear {
         preserve
@@ -224,12 +238,13 @@ if "`graph'"=="on" {
         qui merge m:1 `3' using `lambda_weights_`time'', nogen
         qui merge m:1 `2' using `omega_weights_`time'' , nogen		
 
-        mata: A=J(`N',5,.)
+        mata: Z=J(`N',5,.)
+
         local i=1
 
         foreach s of local id2 {
             qui sum `1' if `3'>=`time' & `2'==`s'
-            mata: A[`i',1]=`r(mean)'
+            mata: Z[`i',1]=`r(mean)'
             local ++i
         }
 
@@ -237,25 +252,26 @@ if "`graph'"=="on" {
         qui gen `Y_lambda'=`1'*weight_lambda		
 
         local i=1
+
         foreach s of local id2 {
             qui sum `Y_lambda' if `3'<`time' & `2'==`s'
-            mata: A[`i',2]=`r(mean)'*`r(N)'
-            mata: A[`i',4]=`s'
+            mata: Z[`i',2]=`r(mean)' * `r(N)'
+            mata: Z[`i',4]=`s'
             local ++i
         }
 
-        mata: A[,3]=A[,1]-A[,2]
+        mata: Z[,3]=Z[,1]-Z[,2]
         mata: delta_tr=J(1,`Ntr',.)
         local i=1
         foreach s of local tr_unit {
-            mata: delta_tr[1,`i']=select(A[,3],A[,4]:==`s')
+            mata: delta_tr[1,`i']=select(Z[,3],Z[,4]:==`s')
             local ++i
         }	
 
-        mata: A[,5]=J(`N',1,sum(delta_tr)/`Ntr')-A[,3]
+        mata: Z[,5]=J(`N',1,sum(delta_tr)/`Ntr')-Z[,3]
         clear
-        mata: difference=A[,5]
-        mata: state=A[,4]
+        mata: difference=Z[,5]
+        mata: state=Z[,4]
         mata: omega=weight_omega
         getmata difference state, force
        
@@ -304,7 +320,6 @@ if "`graph'"=="on" {
 }
 
 
-
 end
 
 
@@ -331,7 +346,8 @@ end
 * (7) indicator of year treated (if treated)
 * (8+) any controls
 mata:
-    struct results scalar synthdid(matrix data, inference, OMEGA, LAMBDA) {
+    struct results scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls) {
+        //controls: '0' no, '1' synth way, '2' R way
         data  = sort(data, (6,2,4))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
@@ -339,12 +355,10 @@ mata:
         treat[,1]=treat[,1]/NT
         treat[,2]=1*(treat[,2]:>=1) + 0*(treat[,2]:==1)
         Nco = sum(data[,7]:==.)/NT
-        controlID = uniqrows(select(data[.,2],data[,7]:==.))
-        //controls = selectindex(treat[,2]:==1)
-        
+        controlID = uniqrows(select(data[.,2],data[,7]:==.))        
         
         //Adjust for controls in xysnth way
-        if (cols(data)>7) {
+        if (cols(data)>7 & controls==1) {
             K = cols(data)
             cdat = data[selectindex(data[,6]:==0),(1,2,4,8..K)]
             cdat = select(cdat, rowmissing(cdat):==0)
@@ -436,10 +450,8 @@ mata:
             A_l = Y0[,1..Npre]:-mean(Y0[,1..Npre])
             b_l = promt:-mean(promt)
             A_o = Y0[,1..Npre]':-mean(Y0[,1..Npre]')
-            //b_o = Y1[.,1..Npre]':-mean(Y1[.,1..Npre]')
             b_o = mean(Y1[.,1..Npre])':-mean(mean(Y1[.,1..Npre])')
-
-
+	
             //Calculate Tau for t
             if (inference==1) {
                 lambda_l = select(LAMBDA'[.,1::Npre],LAMBDA'[,rows(LAMBDA)]:==trt[yr])
@@ -451,10 +463,87 @@ mata:
                 lambda_o = J(1,cols(A_o),1/cols(A_o))
             }
             mindec = (1e-5*sig_t)^2
+			
+            if (controls==2) {
+                K = cols(data)
+                A = J((K-7),1,NULL)
+                CX = J((K-7),1,NULL)
+                n=1
+                for (c=8;c<=K;++c) {
+                    X = rowshape(ydata[.,c],yNG)
+                    CX[n] = &(rowshape(ydata[.,c],yNG))
+                    X0 = select(X,ytreat:==0)
+                    X1 = select(X,ytreat:==1)
+                    A[n] = &((X0[,1..Npre],mean(X0[,(Npre+1)::yNT]')')\(mean(X1[.,1..Npre]),0))
+                    n++
+                }
+				
+                maxiter=10000
+                vals = J(1, maxiter, .)
+				beta=J(1,(K-7),0)
+                gradbeta = J(1,(K-7),0)
+                t=0
+                dd=1
+				
+                eta_o = Npre*yZetaOmega^2
+                eta_l = yNco*yZetaLambda^2
+			
+			    //update wights
+                lambda_l = fw(A_l,b_l,lambda_l,eta_l)
+                err_l    = (A_l, b_l)*(lambda_l' \ -1)
+                lambda_o = fw(A_o,b_o,lambda_o,eta_o)
+                err_o    = (A_o, b_o)*(lambda_o' \ -1)	
+				
+                while (t<maxiter & (t<2 | dd>mindec)) {
+                    t++
+					
+					for (c=1;c<=(K-7);++c) {
+				        gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_l'\-1):/yNco) + err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((lambda_o'\-1):/Npre))
+                    }
+					
+				    alpha=1/t
+                    beta=beta-alpha*gradbeta
 
+                    //~ contract3
+                    C = J(yNco+1,Npre+1,0)
+					for (c=1;c<=(K-7);++c) {
+					    C = C + beta[c]*(*A[c])
+                    }
+
+                    Ybeta=((Y0[,1..Npre],promt)\(mean(Y1[.,1..Npre]),0))-C
+					
+                    Ybeta_A_l = Ybeta[1::yNco,1::Npre]:-mean(Ybeta[1::yNco,1::Npre])
+                    Ybeta_b_l = Ybeta[1::yNco,Npre+1]:-mean(Ybeta[1::yNco,Npre+1])
+                    Ybeta_A_o = Ybeta[1::yNco,1::Npre]':-mean(Ybeta[1::yNco,1::Npre]')
+                    Ybeta_b_o = (Ybeta[yNco+1,1::Npre])':-mean((Ybeta[yNco+1,1::Npre])')
+				
+                    lambda_l = fw(Ybeta_A_l,Ybeta_b_l,lambda_l,eta_l)
+                    err_l    = (Ybeta_A_l,Ybeta_b_l)*(lambda_l' \ -1)
+                    lambda_o = fw(Ybeta_A_o,Ybeta_b_o,lambda_o,eta_o)
+                    err_o    = (Ybeta_A_o,Ybeta_b_o)*(lambda_o' \ -1)
+					
+                    vals[1,t]=yZetaOmega^2*(lambda_o*lambda_o')+yZetaLambda^2*(lambda_l*lambda_l')+(err_o'*err_o)/Npre+(err_l'*err_l)/yNco
+                    if (t>1) dd = vals[1,t-1] - vals[1,t]
+                }
+
+                if (inference==0) {
+                    Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
+                    Omega[.,yr] = lambda_o'
+                }
+				
+                Xbeta = J(rows(Y),cols(Y),0)
+                for (c=1;c<=(K-7);++c) {
+                    Xbeta = Xbeta + beta[c]*(*CX[c])
+                }
+			  
+                tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*(Y-Xbeta)*(-lambda_l, J(1,Npost,1/Npost))'
+                tau_wt[yr] = yNtr*Npost
+            }
+			
+            if (controls==0 | controls==1) {
             //Find optimal weight matrices
-            eta_o = rows(A_o)*yZetaOmega^2
-            eta_l = rows(A_l)*yZetaLambda^2
+            eta_o = Npre*yZetaOmega^2
+            eta_l = yNco*yZetaLambda^2
             lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
             lambda_l = sspar(lambda_l)
             lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
@@ -468,6 +557,7 @@ mata:
             }
             tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(-lambda_l, J(1,Npost,1/Npost))'
             tau_wt[yr] = yNtr*Npost
+			}
         }
         if (inference==0) {
             Omega =  (Omega, controlID)
@@ -485,8 +575,7 @@ mata:
         return(r)
 }
 end
-
-        
+  
 *minimization
 mata:
 real vector lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease) {    
@@ -527,6 +616,30 @@ real vector lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease
     return(x)
 }
 end
+
+
+*fw.step 
+mata:
+real vector fw(matrix A, matrix b, matrix x, eta) {    
+    Ax = A * x'	
+    hg = (Ax - b)' * A + eta * x
+    i = select((1..cols(hg)), colmin(hg :== min(hg)))[1,1]
+    dx = -x
+    dx[1,i] = 1 - x[1,i]
+    v = abs(min(dx))+abs(max(dx))
+    if (v==0) {
+        x = x
+    }
+    else {
+        derr = A[.,i] - Ax
+        step = -(hg) * dx' :/ ((derr' * derr) + eta * (dx * dx'))
+        conststep = min((1, max((0, step)))) 
+        x = x + conststep * dx  
+    }
+    return(x)
+}
+end
+
 
 ***CAN WE RE-WRITE mm_cond EASILY?  THIS WAY WE COULD REDUCE DEPENDENCIES...
 *spar function
@@ -584,4 +697,6 @@ mata:
         return(se_j)
     }
 end
+
+
 
