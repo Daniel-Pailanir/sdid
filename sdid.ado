@@ -14,6 +14,7 @@ version 13.0
     reps(integer 50)
     controls(string asis)
     graph(string)
+    gr2_opt(string)
     ]
     ;
 #delimit cr  
@@ -206,14 +207,14 @@ if "`graph'"=="on" {
 	
 	foreach time of local tryear {
         preserve
-        mata: weight_lambda=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
+        mata: weight_lambda_`time'=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
         clear
-        getmata weight_lambda year, force
+        getmata weight_lambda_`time' year, force
         tempfile lambda_weights_`time'
         qui save `lambda_weights_`time''
         clear
-        mata: weight_omega=select(OMEGA[1::`co',],OMEGA[rows(OMEGA),]:==`time')
-        getmata weight_omega id, force
+        mata: weight_omega_`time'=select(OMEGA[1::`co',],OMEGA[rows(OMEGA),]:==`time')
+        getmata weight_omega_`time' id, force
         qui ren id `2'
         tempfile omega_weights_`time'
         qui save `omega_weights_`time''
@@ -229,12 +230,11 @@ if "`graph'"=="on" {
         qui count if `tyear'==`time' & `3'==`time'
         local Ntr=r(N)
         qui merge m:1 `3' using `lambda_weights_`time'', nogen
-        qui merge m:1 `2' using `omega_weights_`time'' , nogen		
+        *qui merge m:1 `2' using `omega_weights_`time'' , nogen		
 
         mata: Z=J(`N',5,.)
 
         local i=1
-
         foreach s of local id2 {
             qui sum `1' if `3'>=`time' & `2'==`s'
             mata: Z[`i',1]=`r(mean)'
@@ -245,7 +245,6 @@ if "`graph'"=="on" {
         qui gen `Y_lambda'=`1'*weight_lambda		
 
         local i=1
-
         foreach s of local id2 {
             qui sum `Y_lambda' if `3'<`time' & `2'==`s'
             mata: Z[`i',2]=`r(mean)' * `r(N)'
@@ -265,7 +264,7 @@ if "`graph'"=="on" {
         clear
         mata: difference=Z[,5]
         mata: state=Z[,4]
-        mata: omega=weight_omega
+        mata: omega=weight_omega_`time'
         getmata difference state, force
        
         local tr_u `tr_u' `tr_unit' 
@@ -278,10 +277,10 @@ if "`graph'"=="on" {
         gen order=_n
         egen order2=axis(order), label(state) //from egenmore ssc install egenmore
         mata: st_local("tau", strofreal(ATT.tau[`TAU',]))
-
+		
         #delimit ;
-        twoway scatter diff order2 if omega!=0 [aw=omega], msize(tiny)
-            || scatter diff order2 if omega==0, m(X) 
+        twoway scatter diff order2 if omega!=0 & omega>0.001 [aw=omega], msize(tiny)
+            || scatter diff order2 if omega==0 | omega<=0.001, m(X) 
             xlabel(1(1)`co', angle(vertical) labs(tiny) valuelabel)
             yline(`tau', lc(red)) name(g1_`time', replace)
             legend(off);
@@ -302,10 +301,16 @@ if "`graph'"=="on" {
         qui reshape wide `Y_omega', i(`2' `3') j(`tipo') string
         collapse (sum) `Y_omega'Control (mean) `Y_omega'Treated,  by(`3')
 
+        mata: lambda=weight_lambda_`time'
+        getmata lambda, force
+
         #delimit ;
-        twoway line `Y_omega'Control `3'
-            || line `Y_omega'Treated `3',
-            xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2)) 
+        twoway line `Y_omega'Control `3', yaxis(2) lp(solid)
+			|| area lambda `3', yaxis(1) lp(solid) ylabel(0(1)5, axis(1)) ysc(off)
+            || line `Y_omega'Treated `3', yaxis(2) lp(solid)
+            || , 
+            xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
+            `gr2_opt'
             name(g2_`time', replace);
         #delimit cr
 	restore
@@ -492,7 +497,7 @@ mata:
 				
                 maxiter=10000
                 vals = J(1, maxiter, .)
- 		beta=J(1,(K-7),0)
+ 		        beta=J(1,(K-7),0)
                 gradbeta = J(1,(K-7),0)
                 t=0
                 dd=1
@@ -500,7 +505,7 @@ mata:
                 eta_o = Npre*yZetaOmega^2
                 eta_l = yNco*yZetaLambda^2
 			
-		//update wights
+		        //update wights
                 lambda_l = fw(A_l,b_l,lambda_l,eta_l)
                 err_l    = (A_l, b_l)*(lambda_l' \ -1)
                 lambda_o = fw(A_o,b_o,lambda_o,eta_o)
