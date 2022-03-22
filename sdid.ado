@@ -14,7 +14,8 @@ version 13.0
     reps(integer 50)
     controls(string asis)
     graph(string)
-    gr2_opt(string)
+    g1_opt(string)
+    g2_opt(string)
     ]
     ;
 #delimit cr  
@@ -277,12 +278,17 @@ if "`graph'"=="on" {
         gen order=_n
         egen order2=axis(order), label(state) //from egenmore ssc install egenmore
         mata: st_local("tau", strofreal(ATT.tau[`TAU',]))
+
+		order diff order2 order state
+		*mkmat _all, matrix(a`time')
 		
         #delimit ;
-        twoway scatter diff order2 if omega!=0 & omega>0.001 [aw=omega], msize(tiny)
-            || scatter diff order2 if omega==0 | omega<=0.001, m(X) 
+        twoway scatter diff order if omega!=0 [aw=omega], msize(tiny)
+            || scatter diff order if omega==0, m(X) 
             xlabel(1(1)`co', angle(vertical) labs(tiny) valuelabel)
-            yline(`tau', lc(red)) name(g1_`time', replace)
+            yline(`tau', lc(red)) 
+            `g1_opt' 
+            name(g1_`time', replace)
             legend(off);
         #delimit cr
         restore
@@ -310,7 +316,7 @@ if "`graph'"=="on" {
             || line `Y_omega'Treated `3', yaxis(2) lp(solid)
             || , 
             xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
-            `gr2_opt'
+            `g2_opt'
             name(g2_`time', replace);
         #delimit cr
 	restore
@@ -715,7 +721,6 @@ mata:
         return(se_j)
     }
 end
-
 
 
 
