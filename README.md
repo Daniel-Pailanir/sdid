@@ -16,7 +16,7 @@ sdid Y S T D, vce(method) seed(#) reps(#) controls(varlist) control_type() graph
 + vce(): bootstrap, jackknife and placebo standard error.
 + seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
-+ controls(): controls for Y adjusting. The procedure is proposed by xsynth in R.
++ controls(  varlist [, method]): controls included to adjust Y.  A varlist of controls should be included, and optionally an option for the method used to adjust.  This can be R in which case it follows the method proposed by Arkhangelsky et al., or xsynth, in which case it follows the procedure proposed by xsynth in R.  Where method is not specified, R is used as default.
 + graph(): "_on_" for display graph in figure 1 from Arkhangelsky et al.
 
 ### References

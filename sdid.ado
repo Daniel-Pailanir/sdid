@@ -12,8 +12,7 @@ version 13.0
     [
     seed(numlist integer >0 max=1)
     reps(integer 50)
-    controls(varlist numeric)
-    control_type(string)
+    controls(string asis)
     graph(string)
     ]
     ;
@@ -21,10 +20,9 @@ version 13.0
 
 /*
 To do:
- (1) Error check (ensure blance, missings, ...)
- (2) Standard errors for staggered adoption
- (3) Graphing of results 
- (4) Incorporate controls
+ (1) Error check (ensure blance, missings, check variables, ensure no already treated units ...)
+ (2) Standard errors for staggered adoption (jackknife only)
+ (3) Standardise controls option?
 */
 
 *------------------------------------------------------------------------------*
@@ -49,17 +47,12 @@ qui sum `3'
 local mint=r(min)
 qui putmata ori_id=`2' ori_pos=`n' if `3'==`mint' & `tyear'==., replace
 
-if "`controls'"!="" unab conts: `controls'
-
-*for controls option
-if "`control_type'"=="" {
-    local control_opt=0
-}
-if "`control_type'"=="xsynth" {
-    local control_opt=1
-}
-if "`control_type'"=="R" {
-    local control_opt=2
+local control_opt = 0
+if "`controls'"!="" {
+    _parse_X `controls'
+    if "`r(ctype)'"=="R"      local control_opt = 2
+    if "`r(ctype)'"=="xsynth" local control_opt = 1
+    local conts = r(controls)
 }
 
 **IDs (`2') go in twice here because we are not resampling
@@ -233,8 +226,8 @@ if "`graph'"=="on" {
         qui keep if `tyear'==. | `tyear'==`time'
         qui levelsof `2' if `tyear'==`time', local(tr_unit)
         qui levelsof `2', local(id2)
-		qui count if `tyear'==`time' & `3'==`time'
-		local Ntr=r(N)
+        qui count if `tyear'==`time' & `3'==`time'
+        local Ntr=r(N)
         qui merge m:1 `3' using `lambda_weights_`time'', nogen
         qui merge m:1 `2' using `omega_weights_`time'' , nogen		
 
@@ -315,13 +308,32 @@ if "`graph'"=="on" {
             xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2)) 
             name(g2_`time', replace);
         #delimit cr
-		restore
+	restore
     }
 }
 
 
 end
 
+*------------------------------------------------------------------------------*
+*Subroutines
+*------------------------------------------------------------------------------*
+cap program drop _parse_X
+program define _parse_X, rclass
+syntax varlist [, *]
+
+local valid_X=inlist("`options'", "R", "xsynth", "")
+if (`valid_X'==0) {
+    dis as error "Control types must be one of {bf:R} or {bf:xsynth}."
+    exit 198
+}
+
+if ("`options'"=="") local options R
+unab conts: `varlist'
+
+return local controls `conts'
+return local ctype    `options'
+end
 
 *------------------------------------------------------------------------------*
 *Mata functions
@@ -480,7 +492,7 @@ mata:
 				
                 maxiter=10000
                 vals = J(1, maxiter, .)
-				beta=J(1,(K-7),0)
+ 		beta=J(1,(K-7),0)
                 gradbeta = J(1,(K-7),0)
                 t=0
                 dd=1
@@ -488,7 +500,7 @@ mata:
                 eta_o = Npre*yZetaOmega^2
                 eta_l = yNco*yZetaLambda^2
 			
-			    //update wights
+		//update wights
                 lambda_l = fw(A_l,b_l,lambda_l,eta_l)
                 err_l    = (A_l, b_l)*(lambda_l' \ -1)
                 lambda_o = fw(A_o,b_o,lambda_o,eta_o)
@@ -497,17 +509,17 @@ mata:
                 while (t<maxiter & (t<2 | dd>mindec)) {
                     t++
 					
-					for (c=1;c<=(K-7);++c) {
-				        gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_l'\-1):/yNco) + err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((lambda_o'\-1):/Npre))
-                    }
-					
-				    alpha=1/t
+		    for (c=1;c<=(K-7);++c) {
+		        gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_l'\-1):/yNco) +
+                            err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((lambda_o'\-1):/Npre))
+                    }			
+                    alpha=1/t
                     beta=beta-alpha*gradbeta
 
                     //~ contract3
                     C = J(yNco+1,Npre+1,0)
-					for (c=1;c<=(K-7);++c) {
-					    C = C + beta[c]*(*A[c])
+                    for (c=1;c<=(K-7);++c) {
+		        C = C + beta[c]*(*A[c])
                     }
 
                     Ybeta=((Y0[,1..Npre],promt)\(mean(Y1[.,1..Npre]),0))-C
@@ -522,7 +534,8 @@ mata:
                     lambda_o = fw(Ybeta_A_o,Ybeta_b_o,lambda_o,eta_o)
                     err_o    = (Ybeta_A_o,Ybeta_b_o)*(lambda_o' \ -1)
 					
-                    vals[1,t]=yZetaOmega^2*(lambda_o*lambda_o')+yZetaLambda^2*(lambda_l*lambda_l')+(err_o'*err_o)/Npre+(err_l'*err_l)/yNco
+                    vals[1,t]=yZetaOmega^2*(lambda_o*lambda_o')+yZetaLambda^2*(lambda_l*lambda_l')+
+                              (err_o'*err_o)/Npre+(err_l'*err_l)/yNco
                     if (t>1) dd = vals[1,t-1] - vals[1,t]
                 }
 
@@ -541,23 +554,23 @@ mata:
             }
 			
             if (controls==0 | controls==1) {
-            //Find optimal weight matrices
-            eta_o = Npre*yZetaOmega^2
-            eta_l = yNco*yZetaLambda^2
-            lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
-            lambda_l = sspar(lambda_l)
-            lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
-
-            lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
-            lambda_o = sspar(lambda_o)
-            lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
-            if (inference==0) {
-                Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
-                Omega[.,yr] = lambda_o'
+                //Find optimal weight matrices
+                eta_o = Npre*yZetaOmega^2
+                eta_l = yNco*yZetaLambda^2
+                lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
+                lambda_l = sspar(lambda_l)
+                lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
+                
+                lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
+                lambda_o = sspar(lambda_o)
+                lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
+                if (inference==0) {
+                    Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
+                    Omega[.,yr] = lambda_o'
+                }
+                tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(-lambda_l, J(1,Npost,1/Npost))'
+                tau_wt[yr] = yNtr*Npost
             }
-            tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(-lambda_l, J(1,Npost,1/Npost))'
-            tau_wt[yr] = yNtr*Npost
-			}
         }
         if (inference==0) {
             Omega =  (Omega, controlID)
@@ -573,7 +586,7 @@ mata:
         r.tau = tau
         r.Tau = ATT
         return(r)
-}
+    }
 end
   
 *minimization
@@ -697,6 +710,7 @@ mata:
         return(se_j)
     }
 end
+
 
 
 
