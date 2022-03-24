@@ -22,9 +22,23 @@ version 13.0
 
 /*
 To do:
- (1) Error check (ensure blance, missings, check variables, ensure no already treated units ...)
- (2) Standard errors for staggered adoption (jackknife only)
- (3) Standardise controls option?
+ (1) Error check
+      [A] Ensure blance of panel,
+      [B] Ensure no missings in Y, X or treatment
+      [C] Ensure no already treated units at the beginning of the panel
+      [D] Ensure no units passing from untreated, to treated, back to untreated
+      [E] Ensure that there is no inconsistency with standard error type (eg > 1 unit for jackknife)
+      [F] Others?
+ (2)  Standard errors for staggered adoption (jackknife only)
+ (3)  Standardise controls in "R" (make "unstandardized" an option)
+ (4)  Work out definitve names for R and xsynth control
+ (5)  Allow string variables for state, and pass this to graph
+ (6)  Add time period weights to graphs
+ (7)  Write an ad-hoc version of mm_cond to reduce dependencies
+ (8)  Replace axis() from egen with our own implementation
+ (9)  Work out final display format
+ (10) Close off any final graphing issues including saving if desired
+ (11) Write help file
 */
 
 *------------------------------------------------------------------------------*
@@ -34,10 +48,8 @@ To do:
 
 
 *------------------------------------------------------------------------------*
-*STAGGERED ADOPTION
+* (1) Basic set-up 
 *------------------------------------------------------------------------------*
-**FOLLOWING 10 lines are the new implementation (so just need to bootstrap this)
-**We could potentially move generation of treated and tyear into mata function...
 tokenize `varlist'
 tempvar treated ty tyear n
 qui gen `ty' = `3' if `4'==1
@@ -57,14 +69,17 @@ if "`controls'"!="" {
     local conts = r(controls)
 }
 
+*------------------------------------------------------------------------------*
+* (2) Calculate ATT, plus some locals for inference
+*------------------------------------------------------------------------------*
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
 mata: ATT = synthdid(data, 0, ., ., `control_opt')
-mata: st_local("ATT", strofreal(ATT.Tau))
 mata: OMEGA = ATT.Omega
 mata: LAMBDA = ATT.Lambda
+mata: st_local("ATT", strofreal(ATT.Tau))
 
-*some local
+
 qui count if `3'==`mint'                 //total units
 local N=r(N)
 qui count if `treated'==0 & `3'==`mint' //control units
@@ -78,7 +93,7 @@ mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption value
 qui levelsof `tyear', local(tryear) //adoption local
 
 *--------------------------------------------------------------------------*
-*Standard error: bootstrap
+* (3) Standard error: bootstrap
 *--------------------------------------------------------------------------*
 if "`vce'"=="bootstrap" {
     cap set seed `seed'
@@ -127,7 +142,7 @@ if "`vce'"=="bootstrap" {
 }
     	
 *--------------------------------------------------------------------------*
-*Standard error: placebo
+* (4) Standard error: placebo
 *--------------------------------------------------------------------------*
 else if "`vce'"=="placebo" {
     cap set seed `seed'
@@ -179,13 +194,18 @@ else if "`vce'"=="placebo" {
 }
 
 *--------------------------------------------------------------------------*
-*Standard error: jackknife
+* (5) Standard error: jackknife
 *--------------------------------------------------------------------------*
 else if "`vce'"=="jackknife" {
     dis "Standard error estimation under construction for staggered adoption"
     local se 0
 
 }
+
+
+*--------------------------------------------------------------------------*
+* (6) Return output
+*--------------------------------------------------------------------------*
 ereturn local se `se' 
 ereturn local ATT `ATT'
     
@@ -198,7 +218,7 @@ di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"
 
 
 *--------------------------------------------------------------------------*
-*Graphs
+* (7) Graphing
 *--------------------------------------------------------------------------*
 if "`graph'"=="on" {
     qui tab `tyear'
@@ -279,8 +299,8 @@ if "`graph'"=="on" {
         egen order2=axis(order), label(state) //from egenmore ssc install egenmore
         mata: st_local("tau", strofreal(ATT.tau[`TAU',]))
 
-		order diff order2 order state
-		*mkmat _all, matrix(a`time')
+        order diff order2 order state
+        *mkmat _all, matrix(a`time')
 		
         #delimit ;
         twoway scatter diff order if omega!=0 [aw=omega], msize(tiny)
@@ -312,7 +332,7 @@ if "`graph'"=="on" {
 
         #delimit ;
         twoway line `Y_omega'Control `3', yaxis(2) lp(solid)
-			|| area lambda `3', yaxis(1) lp(solid) ylabel(0(1)5, axis(1)) ysc(off)
+    	    || area lambda `3', yaxis(1) lp(solid) ylabel(0(1)5, axis(1)) ysc(off)
             || line `Y_omega'Treated `3', yaxis(2) lp(solid)
             || , 
             xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
@@ -322,12 +342,10 @@ if "`graph'"=="on" {
 	restore
     }
 }
-
-
 end
 
 *------------------------------------------------------------------------------*
-*Subroutines
+* (8) Stata Subroutines
 *------------------------------------------------------------------------------*
 cap program drop _parse_X
 program define _parse_X, rclass
@@ -347,7 +365,7 @@ return local ctype    `options'
 end
 
 *------------------------------------------------------------------------------*
-*Mata functions
+* (9) Mata functions
 *------------------------------------------------------------------------------*
 mata:
 struct results {
@@ -444,7 +462,6 @@ mata:
             ndiff = yNG*(yNT-1)
             ylag = ydata[1..(yN-1),1]
             ylag = (. \ ylag)
-            //ALL BELOW IS DOING THIS
 
             diff = ydata[.,1]-ylag
 
