@@ -16,6 +16,7 @@ version 13.0
     graph(string)
     g1_opt(string)
     g2_opt(string)
+    unstandardized
     ]
     ;
 #delimit cr  
@@ -30,11 +31,8 @@ To do:
       [E] Ensure that there is no inconsistency with standard error type (eg > 1 unit for jackknife)
       [F] Others?
  (2)  Standard errors for staggered adoption (jackknife only)
- (3)  Standardise controls in "R" (make "unstandardized" an option)
  (4)  Work out definitve names for R and xsynth control
  (5)  Allow string variables for state, and pass this to graph
- (6)  Add time period weights to graphs
- (7)  Write an ad-hoc version of mm_cond to reduce dependencies
  (8)  Replace axis() from egen with our own implementation
  (9)  Work out final display format
  (10) Close off any final graphing issues including saving if desired
@@ -67,6 +65,16 @@ if "`controls'"!="" {
     if "`r(ctype)'"=="R"      local control_opt = 2
     if "`r(ctype)'"=="xsynth" local control_opt = 1
     local conts = r(controls)
+
+    if `control_opt'==2&length(`"`unstandardized'"')==0 {
+        local sconts
+        foreach var of varlist `conts' {
+            tempvar z`var'
+            egen `z`var''= std(`var')
+            local sconts `sconts' `z`var''
+        }
+        local conts `sconts'
+    }
 }
 
 *------------------------------------------------------------------------------*
@@ -173,7 +181,7 @@ else if "`vce'"=="placebo" {
             local ++i
         }
 
-		qui replace `4'=1 if `3'>=`tyear'
+        qui replace `4'=1 if `3'>=`tyear'
         bys `2': egen `treated' = max(`4')
 		
         display in smcl "." _continue
@@ -586,10 +594,12 @@ mata:
                 eta_o = Npre*yZetaOmega^2
                 eta_l = yNco*yZetaLambda^2
                 lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
+                //lambda_l
                 lambda_l = sspar(lambda_l)
                 lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
                 
                 lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
+                //lambda_o
                 lambda_o = sspar(lambda_o)
                 lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
                 if (inference==0) {
@@ -681,12 +691,13 @@ real vector fw(matrix A, matrix b, matrix x, eta) {
 }
 end
 
-
-***CAN WE RE-WRITE mm_cond EASILY?  THIS WAY WE COULD REDUCE DEPENDENCIES...
 *spar function
 mata:
     real matrix sspar(matrix V) {
-        W = mm_cond(V :<= max(V)/4, 0, V)
+        W = J(1,length(V),.)
+        for (i=1; i<=length(V); ++i) {
+            W[1,i] = V[1,i] <= max(V)/4 ? 0 : V[1,i]
+        }
         W = W :/ sum(W)
         return(W)
     }
