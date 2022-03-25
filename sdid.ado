@@ -8,12 +8,12 @@ program sdid, eclass
 version 13.0
 	
 #delimit ;
-    syntax varlist(min=4 numeric), vce(string) 
+    syntax varlist(min=4 max=4), vce(string) 
     [
     seed(numlist integer >0 max=1)
     reps(integer 50)
     controls(string asis)
-    graph(string)
+    graph
     g1_opt(string)
     g2_opt(string)
     unstandardized
@@ -32,8 +32,6 @@ To do:
       [F] Others?
  (2)  Standard errors for staggered adoption (jackknife only)
  (4)  Work out definitve names for R and xsynth control
- (5)  Allow string variables for state, and pass this to graph
- (8)  Replace axis() from egen with our own implementation
  (9)  Work out final display format
  (10) Close off any final graphing issues including saving if desired
  (11) Write help file
@@ -49,6 +47,20 @@ To do:
 * (1) Basic set-up 
 *------------------------------------------------------------------------------*
 tokenize `varlist'
+
+**Check if group ID is numeric or string
+local stringvar=0
+cap count if `2'==0
+if _rc!=0 {
+    local stringvar=1
+    local groupvar `2'
+    tempvar ID
+    egen `ID' = group(`2')
+    local varlist `1' `ID' `3' `4'
+    tokenize `varlist'
+}
+
+**Check if group ID is numeric or string
 tempvar treated ty tyear n
 qui gen `ty' = `3' if `4'==1
 qui bys `2': egen `treated' = max(`4')
@@ -58,6 +70,20 @@ gen `n'=_n
 qui sum `3'
 local mint=r(min)
 qui putmata ori_id=`2' ori_pos=`n' if `3'==`mint' & `tyear'==., replace
+
+
+if length("`graph'")!=0&`stringvar'==1 {
+    preserve
+    qui sum `3'
+    **Save original state names for later use with graph
+    qui keep if `3' == r(min)
+    keep `groupvar' `2'
+    tempfile stateString
+    rename `groupvar' stateName
+    rename `2' state
+    qui save `stateString'
+    restore
+}
 
 local control_opt = 0
 if "`controls'"!="" {
@@ -194,7 +220,7 @@ else if "`vce'"=="placebo" {
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
         mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA,`control_opt')
         mata: ATT_p[`b',] = ATTP.Tau
-		local ++b
+        local ++b
         restore
     }
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_p)))
@@ -228,13 +254,13 @@ di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"
 *--------------------------------------------------------------------------*
 * (7) Graphing
 *--------------------------------------------------------------------------*
-if "`graph'"=="on" {
+if length("`graph'")!=0 {
     qui tab `tyear'
     local trN=r(r)
     mata: year=LAMBDA[1::`T',(`trN'+1)]
     mata: id=OMEGA[1::`co',(`trN'+1)]
 	
-	foreach time of local tryear {
+    foreach time of local tryear {
         preserve
         mata: weight_lambda_`time'=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
         clear
@@ -242,7 +268,7 @@ if "`graph'"=="on" {
         tempfile lambda_weights_`time'
         qui save `lambda_weights_`time''
         clear
-        mata: weight_omega_`time'=select(OMEGA[1::`co',],OMEGA[rows(OMEGA),]:==`time')
+        mata: weight_omega_`time'=select(OMEGA[1::`co',],OMEGA[rows(OMEGA),]:==`time')        
         getmata weight_omega_`time' id, force
         qui ren id `2'
         tempfile omega_weights_`time'
@@ -259,8 +285,7 @@ if "`graph'"=="on" {
         qui count if `tyear'==`time' & `3'==`time'
         local Ntr=r(N)
         qui merge m:1 `3' using `lambda_weights_`time'', nogen
-        *qui merge m:1 `2' using `omega_weights_`time'' , nogen		
-
+        
         mata: Z=J(`N',5,.)
 
         local i=1
@@ -291,6 +316,7 @@ if "`graph'"=="on" {
 
         mata: Z[,5]=J(`N',1,sum(delta_tr)/`Ntr')-Z[,3]
         clear
+
         mata: difference=Z[,5]
         mata: state=Z[,4]
         mata: omega=weight_omega_`time'
@@ -304,16 +330,41 @@ if "`graph'"=="on" {
         getmata omega, force
         qui drop if state==.
         gen order=_n
-        egen order2=axis(order), label(state) //from egenmore ssc install egenmore
         mata: st_local("tau", strofreal(ATT.tau[`TAU',]))
 
-        order diff order2 order state
-        *mkmat _all, matrix(a`time')
-		
+        order diff order state
+        local xlabs
+
+        if `stringvar'== 0 {
+            qui levelsof state, local(sgroup)
+            foreach s of local sgroup {
+                qui sum order if state == `s'
+                local oN = r(mean)
+                if r(mean)!= . {
+                    local xlabs `xlabs' `oN' "`s'"
+                }
+            }
+        }
+        if `stringvar'==1 {
+            qui merge 1:m state using `stateString'
+            qui keep if _merge==3
+            qui levelsof stateName, local(sgroup)
+            foreach s of local sgroup {
+                qui sum order if stateName == `"`s'"'
+                local oN = r(mean)
+                if r(mean)!= . {
+                    local xlabs `xlabs' `oN' "`s'"
+                }
+            }
+            
+        }
+
+        lab var diff "Difference"
+        lab var order "Group"
         #delimit ;
         twoway scatter diff order if omega!=0 [aw=omega], msize(tiny)
             || scatter diff order if omega==0, m(X) 
-            xlabel(1(1)`co', angle(vertical) labs(tiny) valuelabel)
+            xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
             yline(`tau', lc(red)) 
             `g1_opt' 
             name(g1_`time', replace)
@@ -321,7 +372,7 @@ if "`graph'"=="on" {
         #delimit cr
         restore
         local ++TAU
-		
+        
         preserve
         qui merge m:1 `2' using `omega_weights_`time'' , nogen		
         qui keep if `tyear'==. | `tyear'==`time'
@@ -347,7 +398,7 @@ if "`graph'"=="on" {
             `g2_opt'
             name(g2_`time', replace);
         #delimit cr
-	restore
+        restore
     }
 }
 end
@@ -357,19 +408,19 @@ end
 *------------------------------------------------------------------------------*
 cap program drop _parse_X
 program define _parse_X, rclass
-syntax varlist [, *]
-
-local valid_X=inlist("`options'", "R", "xsynth", "")
-if (`valid_X'==0) {
-    dis as error "Control types must be one of {bf:R} or {bf:xsynth}."
-    exit 198
-}
-
-if ("`options'"=="") local options R
-unab conts: `varlist'
-
-return local controls `conts'
-return local ctype    `options'
+    syntax varlist [, *]
+    
+    local valid_X=inlist("`options'", "R", "xsynth", "")
+    if (`valid_X'==0) {
+        dis as error "Control types must be one of {bf:R} or {bf:xsynth}."
+        exit 198
+    }
+    
+    if ("`options'"=="") local options R
+    unab conts: `varlist'
+    
+    return local controls `conts'
+    return local ctype    `options'
 end
 
 *------------------------------------------------------------------------------*
