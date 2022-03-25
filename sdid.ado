@@ -33,8 +33,6 @@ To do:
  (3)  Standardise controls in "R" (make "unstandardized" an option)
  (4)  Work out definitve names for R and xsynth control
  (5)  Allow string variables for state, and pass this to graph
- (6)  Add time period weights to graphs
- (7)  Write an ad-hoc version of mm_cond to reduce dependencies
  (8)  Replace axis() from egen with our own implementation
  (9)  Work out final display format
  (10) Close off any final graphing issues including saving if desired
@@ -173,7 +171,7 @@ else if "`vce'"=="placebo" {
             local ++i
         }
 
-		qui replace `4'=1 if `3'>=`tyear'
+        qui replace `4'=1 if `3'>=`tyear'
         bys `2': egen `treated' = max(`4')
 		
         display in smcl "." _continue
@@ -586,10 +584,12 @@ mata:
                 eta_o = Npre*yZetaOmega^2
                 eta_l = yNco*yZetaLambda^2
                 lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
+                //lambda_l
                 lambda_l = sspar(lambda_l)
                 lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
                 
                 lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
+                //lambda_o
                 lambda_o = sspar(lambda_o)
                 lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
                 if (inference==0) {
@@ -681,12 +681,13 @@ real vector fw(matrix A, matrix b, matrix x, eta) {
 }
 end
 
-
-***CAN WE RE-WRITE mm_cond EASILY?  THIS WAY WE COULD REDUCE DEPENDENCIES...
 *spar function
 mata:
     real matrix sspar(matrix V) {
-        W = mm_cond(V :<= max(V)/4, 0, V)
+        W = J(1,length(V),.)
+        for (i=1; i<=length(V); ++i) {
+            W[1,i] = V[1,i] <= max(V)/4 ? 0 : V[1,i]
+        }
         W = W :/ sum(W)
         return(W)
     }
