@@ -16,6 +16,7 @@ version 13.0
     graph(string)
     g1_opt(string)
     g2_opt(string)
+    unstandardized
     ]
     ;
 #delimit cr  
@@ -30,7 +31,6 @@ To do:
       [E] Ensure that there is no inconsistency with standard error type (eg > 1 unit for jackknife)
       [F] Others?
  (2)  Standard errors for staggered adoption (jackknife only)
- (3)  Standardise controls in "R" (make "unstandardized" an option)
  (4)  Work out definitve names for R and xsynth control
  (5)  Allow string variables for state, and pass this to graph
  (8)  Replace axis() from egen with our own implementation
@@ -65,6 +65,16 @@ if "`controls'"!="" {
     if "`r(ctype)'"=="R"      local control_opt = 2
     if "`r(ctype)'"=="xsynth" local control_opt = 1
     local conts = r(controls)
+
+    if `control_opt'==2&length(`"`unstandardized'"')==0 {
+        local sconts
+        foreach var of varlist `conts' {
+            tempvar z`var'
+            egen `z`var''= std(`var')
+            local sconts `sconts' `z`var''
+        }
+        local conts `sconts'
+    }
 }
 
 *------------------------------------------------------------------------------*
