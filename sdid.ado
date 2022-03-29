@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference in Differences
-*! Version 0.1.0 January 25, 2022
+*! Version 0.8.0 January 25, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
@@ -12,11 +12,12 @@ version 13.0
     [
     seed(numlist integer >0 max=1)
     reps(integer 50)
-    controls(string asis)
+    covariates(string asis)
     graph
     g1_opt(string)
     g2_opt(string)
     unstandardized
+    graph_export(string asis)
     ]
     ;
 #delimit cr  
@@ -24,30 +25,15 @@ version 13.0
 /*
 To do:
  (1) Error check
-      [A] Ensure blance of panel,
-      [B] Ensure no missings in Y, X or treatment
-      [C] Ensure no already treated units at the beginning of the panel
-      [D] Ensure no units passing from untreated, to treated, back to untreated
       [E] Ensure that there is no inconsistency with standard error type (eg > 1 unit for jackknife)
-      [F] Others?
  (2)  Standard errors for staggered adoption (jackknife only)
- (4)  Work out definitve names for R and xsynth control
  (9)  Work out final display format
- (10) Close off any final graphing issues including saving if desired
  (11) Write help file
 */
 
 *------------------------------------------------------------------------------*
 * (0) Error checks in parsing
 *------------------------------------------------------------------------------*
-
-
-
-*------------------------------------------------------------------------------*
-* (1) Basic set-up 
-*------------------------------------------------------------------------------*
-tokenize `varlist'
-
 **Check if group ID is numeric or string
 local stringvar=0
 cap count if `2'==0
@@ -59,8 +45,50 @@ if _rc!=0 {
     local varlist `1' `ID' `3' `4'
     tokenize `varlist'
 }
+qui xtset `2' `3'
+if `"`r(balanced)'"'!="strongly balanced" {
+    dis as error "Panel is unbalanced."
+    exit 451
+}
+qui count if `1'==.
+if r(N)!=0 {
+    dis as error "Missing values found in dependent variable.  A balanced panel without missing observations is required."
+    exit 416
+}
+qui count if `4'==.
+if r(N)!=0 {
+    dis as error "Missing values found in treatment variable.  A balanced panel without missing observations is required."
+    exit 416
+}
+qui count if `4'!=0&`4'!=1
+if r(N)!=0 {
+    dis as error "Treatment variable takes values distinct from 0 and 1."
+    exit 450
+}
+qui sum `3'
+qui sum `4' if `3'==r(min)
+if r(max)!=0 {
+    dis as error "Certain units are treated in the first period of the panel."
+    dis as error "Any units which are treated the entire panel should not be included in the synthetic DID procedure."
+    exit 459
+}
+tempvar test
+qui bys `2' (`3'): gen `test'=`4'-`4'[_n-1]
+qui sum `test'
+qui count if `test'!=0&`test'!=1&`test'!=.
+if r(N)!=0 {
+    local e1 "to only change from untreated to treated, or remain untreated."
+    dis as error "Units are observed to change from treated (earlier) to untreated (later)."
+    dis as error "A staggered adoption is assumed in which units are assumed `e1'"
+    exit 459
+}
+drop `test'
 
-**Check if group ID is numeric or string
+
+
+*------------------------------------------------------------------------------*
+* (1) Basic set-up 
+*------------------------------------------------------------------------------*
 tempvar treated ty tyear n
 qui gen `ty' = `3' if `4'==1
 qui bys `2': egen `treated' = max(`4')
@@ -86,10 +114,10 @@ if length("`graph'")!=0&`stringvar'==1 {
 }
 
 local control_opt = 0
-if "`controls'"!="" {
-    _parse_X `controls'
-    if "`r(ctype)'"=="R"      local control_opt = 2
-    if "`r(ctype)'"=="xsynth" local control_opt = 1
+if "`covariates'"!="" {
+    _parse_X `covariates'
+    if "`r(ctype)'"=="optimized" local control_opt = 2
+    if "`r(ctype)'"=="projected" local control_opt = 1
     local conts = r(controls)
 
     if `control_opt'==2&length(`"`unstandardized'"')==0 {
@@ -101,7 +129,15 @@ if "`controls'"!="" {
         }
         local conts `sconts'
     }
+    tempvar nmiss
+    egen `nmiss' = rowmiss(`conts')
+    qui sum `nmiss'
+    if r(mean)!=0 {
+        dis as error "Missing values found in covariates.  A balanced panel without missing observations is required."
+        exit 416
+    }
 }
+
 
 *------------------------------------------------------------------------------*
 * (2) Calculate ATT, plus some locals for inference
@@ -359,6 +395,16 @@ if length("`graph'")!=0 {
             
         }
 
+        if length(`"`graph_export'"')!=0 {
+            _graph_Name `graph_export'
+            local gstub = r(gstub)
+            local suffix = r(suffix)
+            
+            if "`gstub'"=="."  local gstub
+            if "`suffix'"=="." local suffix
+            local ex=1
+        }
+        
         lab var diff "Difference"
         lab var order "Group"
         #delimit ;
@@ -366,10 +412,10 @@ if length("`graph'")!=0 {
             || scatter diff order if omega==0, m(X) 
             xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
             yline(`tau', lc(red)) 
-            `g1_opt' 
-            name(g1_`time', replace)
-            legend(off);
+            `g1_opt' name(g1_`time', replace) legend(off);
         #delimit cr
+        if `ex'==1 graph export "`gstub'weights`time'`suffix'", replace
+        
         restore
         local ++TAU
         
@@ -395,9 +441,9 @@ if length("`graph'")!=0 {
             || line `Y_omega'Treated `3', yaxis(2) lp(solid)
             || , 
             xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
-            `g2_opt'
-            name(g2_`time', replace);
+           `g2_opt' name(g2_`time', replace);
         #delimit cr
+        if `ex'==1 graph export "`gstub'trends`time'`suffix'", replace
         restore
     }
 }
@@ -410,17 +456,32 @@ cap program drop _parse_X
 program define _parse_X, rclass
     syntax varlist [, *]
     
-    local valid_X=inlist("`options'", "R", "xsynth", "")
+    local valid_X=inlist("`options'", "optimized", "projected", "")
     if (`valid_X'==0) {
-        dis as error "Control types must be one of {bf:R} or {bf:xsynth}."
+        dis as error "Control types must be one of {bf:optimized} or {bf:projected}."
         exit 198
     }
     
-    if ("`options'"=="") local options R
+    if ("`options'"=="") local options optimized
     unab conts: `varlist'
     
     return local controls `conts'
     return local ctype    `options'
+end
+
+cap program drop _graph_Name
+program define _graph_Name, rclass
+    syntax [anything] [, *]
+    
+    local valid_X=inlist("`options'", ".ps", ".eps", ".svg", ".wmf", ".emf", ".pdf", ".png", ".tif")
+    if (`valid_X'==0) {
+        dis as error "When specifying graph export, export format must be a valid type."
+        dis as error "Please specify a valid export type (.eps, .ps, .pdf, and so forth)"
+        exit 198
+    }
+
+    return local gstub  `anything'
+    return local suffix `options'
 end
 
 *------------------------------------------------------------------------------*
@@ -587,7 +648,7 @@ mata:
                 eta_o = Npre*yZetaOmega^2
                 eta_l = yNco*yZetaLambda^2
 			
-		        //update wights
+                //update wights
                 lambda_l = fw(A_l,b_l,lambda_l,eta_l)
                 err_l    = (A_l, b_l)*(lambda_l' \ -1)
                 lambda_o = fw(A_o,b_o,lambda_o,eta_o)
