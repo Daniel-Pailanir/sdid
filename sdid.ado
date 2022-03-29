@@ -45,6 +45,9 @@ if _rc!=0 {
     local varlist `1' `ID' `3' `4'
     tokenize `varlist'
 }
+else {
+    tokenize `varlist'
+}
 qui xtset `2' `3'
 if `"`r(balanced)'"'!="strongly balanced" {
     dis as error "Panel is unbalanced."
