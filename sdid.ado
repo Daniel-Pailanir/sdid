@@ -407,6 +407,7 @@ if length("`graph'")!=0 {
             if "`suffix'"=="." local suffix
             local ex=1
         }
+        else local ex=0
         
         lab var diff "Difference"
         lab var order "Group"
