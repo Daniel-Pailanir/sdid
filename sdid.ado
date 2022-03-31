@@ -146,12 +146,15 @@ if "`covariates'"!="" {
 * (2) Calculate ATT, plus some locals for inference
 *------------------------------------------------------------------------------*
 **IDs (`2') go in twice here because we are not resampling
+
+if "`vce'"=="jackknife" local jk=1
+else local jk=0
+
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-mata: ATT = synthdid(data, 0, ., ., `control_opt')
+mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
 mata: OMEGA = ATT.Omega
 mata: LAMBDA = ATT.Lambda
 mata: st_local("ATT", strofreal(ATT.Tau))
-
 
 qui count if `3'==`mint'                 //total units
 local N=r(N)
@@ -204,7 +207,7 @@ if "`vce'"=="bootstrap" {
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
 
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATTB = synthdid(data,1,OMEGAB,LAMBDA,`control_opt')
+            mata: ATTB = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk')
             mata: ATT_b[`b',] = ATTB.Tau
             local ++b
         }
@@ -257,7 +260,7 @@ else if "`vce'"=="placebo" {
         mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]		
 		
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-        mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA,`control_opt')
+        mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk')
         mata: ATT_p[`b',] = ATTP.Tau
         local ++b
         restore
@@ -269,11 +272,9 @@ else if "`vce'"=="placebo" {
 *--------------------------------------------------------------------------*
 * (5) Standard error: jackknife
 *--------------------------------------------------------------------------*
-else if "`vce'"=="jackknife" {
-    dis "Standard error estimation under construction for staggered adoption"
-    local se 0
-
-}
+*else if "`vce'"=="jackknife" {
+    *dis "Standard error estimation under construction for staggered adoption"
+*}
 
 
 *--------------------------------------------------------------------------*
@@ -288,7 +289,6 @@ di as text "{c TLC}{hline 8}{c TT}{hline 11}{c TRC}"
 di as text "{c |} {bf: ATT}   {c |} " as result %9.5f `ATT'  as text " {c |}"
 di as text "{c |} {bf: se}    {c |} " as result %9.5f `se' as text " {c |}"
 di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"   	
-
 
 *--------------------------------------------------------------------------*
 * (7) Graphing
@@ -511,8 +511,7 @@ end
 * (7) indicator of year treated (if treated)
 * (8+) any controls
 mata:
-    struct results scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls) {
-        //controls: '0' no, '1' synth way, '2' R way
+    struct results scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk) {
         data  = sort(data, (6,2,4))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
@@ -520,34 +519,18 @@ mata:
         treat[,1]=treat[,1]/NT
         treat[,2]=1*(treat[,2]:>=1) + 0*(treat[,2]:==1)
         Nco = sum(data[,7]:==.)/NT
-        controlID = uniqrows(select(data[.,2],data[,7]:==.))        
-        
+        controlID = uniqrows(select(data[.,2],data[,7]:==.))  
+		
+		/////////////////////////////////////////////
+		uniqID = (uniqrows(select(data[.,2],data[,7]:==.)) \ uniqrows(select(data[.,2],data[,7]:!=.)))
+		N = panelstats(units)[,1]
+		////////////////////////////////////////////
+		
         //Adjust for controls in xysnth way
+		//save original data for jackknife
+        data_ori=data
         if (cols(data)>7 & controls==1) {
-            K = cols(data)
-            cdat = data[selectindex(data[,6]:==0),(1,2,4,8..K)]
-            cdat = select(cdat, rowmissing(cdat):==0)
-            //CAN THIS BE OPTIMIZED FOR FIXED EFFECTS???
-            X = cdat[.,4::cols(cdat)]
-            NX = cols(X)
-            yearFEs = uniqrows(cdat[.,3])
-            for (fe=1;fe<=rows(yearFEs);fe++) {
-                fevar = cdat[.,3]:==yearFEs[fe]
-                X = (X,fevar)
-            }
-            unitFEs = uniqrows(cdat[.,2])
-            for (fe=1;fe<=rows(unitFEs);fe++) {
-                fevar = cdat[.,2]:==unitFEs[fe]
-                X = (X,fevar)
-            }            
-            y = cdat[.,1]
-            // Estimate regression
-            XX = quadcross(X,1 , X,1)
-            Xy = quadcross(X,1 , y,0)
-            beta = invsym(XX)*Xy
-            beta = beta[1::NX]
-            X = data[.,8::K]
-            data[,1]=data[.,1]-X*beta
+            data[,1] = projected(data)
         }
 
         //Find years which change treatment
@@ -561,13 +544,11 @@ mata:
             Lambda = J(NT, rows(trt),.)
         }
         for(yr=1;yr<=rows(trt);++yr) {
-            //trt[yr]
             cond1 = data[,7]:==trt[yr]
             cond2 = data[,7]:==.
             cond = cond1+cond2
             yNtr = sum(cond1)
             yNco = sum(cond2)
-            //cond = cond + data[,6]:==.
 
             ydata = select(data,cond)
             yunits = panelsetup(ydata,2)
@@ -659,10 +640,9 @@ mata:
                 err_o    = (A_o, b_o)*(lambda_o' \ -1)	
 				
                 while (t<maxiter & (t<2 | dd>mindec)) {
-                    t++
-					
-		    for (c=1;c<=(K-7);++c) {
-		        gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_l'\-1):/yNco) +
+                    t++		
+		            for (c=1;c<=(K-7);++c) {
+		                gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_l'\-1):/yNco) +
                             err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((lambda_o'\-1):/Npre))
                     }			
                     alpha=1/t
@@ -671,7 +651,7 @@ mata:
                     //~ contract3
                     C = J(yNco+1,Npre+1,0)
                     for (c=1;c<=(K-7);++c) {
-		        C = C + beta[c]*(*A[c])
+                        C = C + beta[c]*(*A[c])
                     }
 
                     Ybeta=((Y0[,1..Npre],promt)\(mean(Y1[.,1..Npre]),0))-C
@@ -700,8 +680,8 @@ mata:
                 for (c=1;c<=(K-7);++c) {
                     Xbeta = Xbeta + beta[c]*(*CX[c])
                 }
-			  
-                tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*(Y-Xbeta)*(-lambda_l, J(1,Npost,1/Npost))'
+                Y=Y-Xbeta
+                tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*(Y)*(-lambda_l, J(1,Npost,1/Npost))'
                 tau_wt[yr] = yNtr*Npost
             }
 			
@@ -710,12 +690,10 @@ mata:
                 eta_o = Npre*yZetaOmega^2
                 eta_l = yNco*yZetaLambda^2
                 lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
-                //lambda_l
                 lambda_l = sspar(lambda_l)
                 lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
                 
                 lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
-                //lambda_o
                 lambda_o = sspar(lambda_o)
                 lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
                 if (inference==0) {
@@ -726,12 +704,141 @@ mata:
                 tau_wt[yr] = yNtr*Npost
             }
         }
+		
         if (inference==0) {
             Omega =  (Omega, controlID)
             Omega =  (Omega \ (trt', .))
             Lambda = (Lambda, uniqrows(data[,4]))
             Lambda = (Lambda \ (trt', .))
         }
+
+        //jackknife
+        if (jk==1) {
+            tau_aux    = J(rows(trt),1,.)
+            tau_wt_aux = J(1,rows(trt),.)
+            ATT_aux = J(N,1,.)
+        
+			yNco_ori=yNco
+            ind=(1::yNco)
+            for (i=1; i<=N; ++i) {
+                drp=uniqID[i]
+                data_aux = select(data_ori, data_ori[,3]:!=drp)
+					
+                //projected adjustment
+                if (cols(data_aux)>7 & controls==1) {
+                    data_aux[,1] = projected(data_aux)
+                }	
+                
+                for (yr=1;yr<=rows(trt);++yr) {
+                    cond1 = data_aux[,7]:==trt[yr]
+                    cond2 = data_aux[,7]:==.
+                    cond = cond1+cond2
+                    yNtr = sum(cond1)
+                    yNco = sum(cond2)
+                    yNco = yNco/yNT
+                    yNtr = yNtr/yNT
+                    pretreat = select(uniqrows(data_aux[,4]),uniqrows(data_aux[,4]):<trt[yr])
+                    Npre  = rows(pretreat)		
+                    Npost = yNT-Npre
+                    ydata_aux = select(data_aux,cond)
+                    yunits = panelsetup(ydata_aux,2)
+                    yNG = panelstats(yunits)[,1]
+                    ytreat = ydata_aux[,7]:==trt[yr]
+                    ytreat = panelsum(ytreat,yunits)
+                    ytreat = ytreat/yNT
+                    Y_aux = rowshape(ydata_aux[.,1],yNG)
+					
+                    lambda_aux = select(Lambda'[.,1::Npre],Lambda'[,rows(Lambda)]:==trt[yr])  
+
+                    id1=select(ind, ind:!=i)
+                    omega_aux = select(Omega'[.,1::yNco_ori],Omega'[,rows(Omega)]:==trt[yr]) 
+                    omega_aux = sum_norm(omega_aux[id1])
+
+                    if (controls==0 | controls==1) {
+                        tau_aux[yr] = (-omega_aux, J(1,yNtr,1/yNtr))*Y_aux*(-lambda_aux, J(1,Npost,1/Npost))'
+                        tau_wt_aux[yr] = yNtr*Npost	
+                    }
+					
+                    //R adjustment
+                    if (cols(data_aux)>7 & controls==2) {
+                        maxiter=10000
+                        Y0_aux = select(Y_aux,ytreat:==0)
+                        Y1_aux = select(Y_aux,ytreat:==1)
+                        promt_aux = mean(Y0_aux[,(Npre+1)::yNT]')'
+                        A_l_aux = Y0_aux[,1..Npre]:-mean(Y0_aux[,1..Npre])
+                        b_l_aux = promt_aux:-mean(promt_aux)
+                        A_o_aux = Y0_aux[,1..Npre]':-mean(Y0_aux[,1..Npre]')
+                        b_o_aux = mean(Y1_aux[.,1..Npre])':-mean(mean(Y1_aux[.,1..Npre])')
+					
+                        K = cols(data_aux)
+                        A = J((K-7),1,NULL)
+                        CX = J((K-7),1,NULL)
+                        n=1
+                        for (c=8;c<=K;++c) {
+                            X = rowshape(ydata_aux[.,c],yNG)
+                            CX[n] = &(rowshape(ydata_aux[.,c],yNG))
+                            X0 = select(X,ytreat:==0)
+                            X1 = select(X,ytreat:==1)
+                            A[n] = &((X0[,1..Npre],mean(X0[,(Npre+1)::yNT]')')\(mean(X1[.,1..Npre]),0))
+                            n++
+                        }
+				
+                        vals = J(1, maxiter, .)
+                        beta=J(1,(K-7),0)
+                        gradbeta = J(1,(K-7),0)
+                        t=0
+                        dd=1	
+						
+                        //update wights
+                        err_l = (A_l_aux, b_l_aux)*(lambda_aux' \ -1)
+                        err_o = (A_o_aux, b_o_aux)*(omega_aux' \ -1)	
+						
+                        while (t<maxiter & (t<2 | dd>mindec)) {
+                            t++	
+                            for (c=1;c<=(K-7);++c) {
+                                gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_aux'\-1):/yNco) +
+                                err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((omega_aux'\-1):/Npre))
+                            }
+							
+                            alpha=1/t
+                            beta=beta-alpha*gradbeta
+
+                            C = J(yNco+1,Npre+1,0)
+                            for (c=1;c<=(K-7);++c) {
+                                C = C + beta[c]*(*A[c])
+                            }
+
+                            Ybeta=((Y0_aux[,1..Npre],promt_aux)\(mean(Y1_aux[.,1..Npre]),0))-C
+                            Ybeta_A_l = Ybeta[1::yNco,1::Npre]:-mean(Ybeta[1::yNco,1::Npre])
+                            Ybeta_b_l = Ybeta[1::yNco,Npre+1]:-mean(Ybeta[1::yNco,Npre+1])
+                            Ybeta_A_o = Ybeta[1::yNco,1::Npre]':-mean(Ybeta[1::yNco,1::Npre]')
+                            Ybeta_b_o = (Ybeta[yNco+1,1::Npre])':-mean((Ybeta[yNco+1,1::Npre])')
+                            err_l = (Ybeta_A_l,Ybeta_b_l)*(lambda_aux' \ -1)
+                            err_o = (Ybeta_A_o,Ybeta_b_o)*(omega_aux' \ -1)
+							
+                            vals[1,t]=yZetaOmega^2*(lambda_aux*lambda_aux')+yZetaLambda^2*(lambda_aux*lambda_aux')+
+                                  (err_o'*err_o)/Npre+(err_l'*err_l)/yNco
+						
+                            if (t>1) dd = vals[1,t-1] - vals[1,t]
+                        }
+						
+                        Xbeta = J(rows(Y_aux),cols(Y_aux),0)
+                        for (c=1;c<=(K-7);++c) {
+                            Xbeta = Xbeta + beta[c]*(*CX[c])
+                        }
+                        Y_aux=Y_aux-Xbeta
+						
+                        tau_aux[yr] = (-omega_aux, J(1,yNtr,1/yNtr))*(Y_aux)*(-lambda_aux, J(1,Npost,1/Npost))'
+                        tau_wt_aux[yr] = yNtr*Npost	
+                    }				
+                }
+                tau_wt_aux = tau_wt_aux/sum(tau_wt_aux')
+                ATT_aux[i] = tau_wt_aux*tau_aux	
+            }
+            se_j = sqrt(((N-1)/N) * (N - 1) * variance(vec(ATT_aux)))
+            st_local("se", strofreal(se_j))
+        }
+		
         tau_wt = tau_wt/sum(tau_wt')
         ATT = tau_wt*tau
         struct results scalar r
@@ -784,7 +891,6 @@ real vector lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease
 }
 end
 
-
 *fw.step 
 mata:
 real vector fw(matrix A, matrix b, matrix x, eta) {    
@@ -835,36 +941,44 @@ end
 
 *simple merge bt two vectors
 mata:
-    real matrix smerge(matrix A, matrix B)
-{
-    v = J(rows(A), 1, .)
-    A = (A, v)
-    for (i=1; i<=rows(A); i++) {
-        for (j=1; j<=rows(B); j++) {
-            if (A[i,1]==B[j,1]) A[i,2]=B[j,2]
-        }
-	}
-    A = A[.,2]
-    return(A)
+    real matrix smerge(matrix A, matrix B) {
+        v = J(rows(A), 1, .)
+        A = (A, v)
+        for (i=1; i<=rows(A); i++) {
+            for (j=1; j<=rows(B); j++) {
+                if (A[i,1]==B[j,1]) A[i,2]=B[j,2]
+            }
+	    }
+        A = A[.,2]
+        return(A)
 }
 end	
 
-*for jackknife
+*projected covariates
 mata:
-    real vector jackknife(matrix Y, matrix L, matrix O, c, tp, N, T) {
-        tau_j = J(N, 1, .)
-        ind1 = (1::N)
-        for (i=1; i<=N; i++) {
-            id = select(ind1, ind1:!=i)
-            id2 = select(id, id:<=c)
-            t = length(id)-length(id2)
-            l_o = sum_norm(O[,id2])
-            tau_j[i,1] = (-l_o, J(1, t, 1/t))*Y[(id),1..T]*(-L, J(1, tp, 1/tp))'
+    real matrix projected(matrix Y) {
+        K = cols(Y)
+        cdat = Y[selectindex(Y[,6]:==0),(1,2,4,8..K)]
+        cdat = select(cdat, rowmissing(cdat):==0)
+        X = cdat[.,4::cols(cdat)]
+        NX = cols(X)
+        yearFEs = uniqrows(cdat[.,3])
+        for (fe=1;fe<=rows(yearFEs);fe++) {
+            fevar = cdat[.,3]:==yearFEs[fe]
+            X = (X,fevar)
         }
-        se_j = sqrt(((N-1)/N) * (N - 1) * variance(vec(tau_j)))
-        return(se_j)
-    }
+        unitFEs = uniqrows(cdat[.,2])
+        for (fe=1;fe<=rows(unitFEs);fe++) {
+            fevar = cdat[.,2]:==unitFEs[fe]
+            X = (X,fevar)
+        }            
+        y = cdat[.,1]
+        XX = quadcross(X,1 , X,1)
+        Xy = quadcross(X,1 , y,0)
+        beta = invsym(XX)*Xy
+        beta = beta[1::NX]
+        X = Y[.,8::K]
+        Yprojected = Y[.,1]-X*beta
+        return(Yprojected)
+}
 end
-
-
-
