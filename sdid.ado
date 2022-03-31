@@ -24,9 +24,6 @@ version 13.0
 
 /*
 To do:
- (1) Error check
-      [E] Ensure that there is no inconsistency with standard error type (eg > 1 unit for jackknife)
- (2)  Standard errors for staggered adoption (jackknife only)
  (9)  Work out final display format
  (11) Write help file
 */
@@ -87,7 +84,50 @@ if r(N)!=0 {
 }
 drop `test'
 
+if "`vce'"=="jackknife" {
+    tempvar t1 t2
+    qui gen `t1'=`3' if `4'==1
+    qui by `2': egen `t2'=min(`t1')
+    qui levelsof `t2', local(t2)
+    foreach t of local t2 {
+        qui tab `2' if `4'==1 & `t2'==`t'
+        if r(r)<=1 {
+            di as error "Jackknife standard error needs at least two treated units for each treatment period"
+            exit 451
+        }
+    }
+}
 
+if "`vce'"=="bootstrap" {
+    tempvar t1 t2
+    qui gen `t1'=`3' if `4'==1
+    qui by `2': egen `t2'=min(`t1')
+    qui tab `t2'
+    if r(r)==1 {
+        qui tab `2' if `4'==1
+        if r(r)==1 {
+            di as error "Bootstrap standard error needs more than one treated unit if there is a treatment period"
+            exit 451
+        }
+    }
+}
+
+if "`vce'"=="placebo" {
+    tempvar t1 t2
+    qui gen `t1'=`3' if `4'==1
+    qui by `2': egen `t2'=min(`t1')
+    qui levelsof `t2', local(t2)
+    foreach t of local t2 {
+        qui count if `4'==0 & `3'==`t'
+        local coN=r(N)
+        qui count if `4'==1 & `3'==`t'
+        local trN=r(N)
+        if (`coN'<`trN')==1 {
+            di as error "Placebo standard error needs to have more controls than treated units"
+            exit 451
+        }
+    }
+}
 
 *------------------------------------------------------------------------------*
 * (1) Basic set-up 
@@ -141,7 +181,6 @@ if "`covariates'"!="" {
     }
 }
 
-
 *------------------------------------------------------------------------------*
 * (2) Calculate ATT, plus some locals for inference
 *------------------------------------------------------------------------------*
@@ -177,11 +216,6 @@ if "`vce'"=="bootstrap" {
     local B = `reps'
     mata: ATT_b = J(`B', 1, .)
 	
-    /*if (`Ntr'==1)==1 {
-        di as err "It is not possible to do Bootstrap se because there is only one treated unit"
-        exit 198
-    }*/
-    	
     dis "Bootstrap replications (`reps'). This may take some time."
     dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
 
@@ -226,11 +260,6 @@ else if "`vce'"=="placebo" {
     local B = `reps'
     mata: ATT_p = J(`B', 1, .)
 	
-    /*if (`tr'>=`co')==1 {
-        di as err "It is not possible to do Placebo se. Must have more controls than treated units."
-        exit 198
-    }*/
-	
     dis "Placebo replications (`reps'). This may take some time."
     dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
 	
@@ -270,15 +299,7 @@ else if "`vce'"=="placebo" {
 }
 
 *--------------------------------------------------------------------------*
-* (5) Standard error: jackknife
-*--------------------------------------------------------------------------*
-*else if "`vce'"=="jackknife" {
-    *dis "Standard error estimation under construction for staggered adoption"
-*}
-
-
-*--------------------------------------------------------------------------*
-* (6) Return output
+* (5) Return output
 *--------------------------------------------------------------------------*
 ereturn local se `se' 
 ereturn local ATT `ATT'
@@ -291,7 +312,7 @@ di as text "{c |} {bf: se}    {c |} " as result %9.5f `se' as text " {c |}"
 di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"   	
 
 *--------------------------------------------------------------------------*
-* (7) Graphing
+* (6) Graphing
 *--------------------------------------------------------------------------*
 if length("`graph'")!=0 {
     qui tab `tyear'
@@ -454,7 +475,7 @@ if length("`graph'")!=0 {
 end
 
 *------------------------------------------------------------------------------*
-* (8) Stata Subroutines
+* (7) Stata Subroutines
 *------------------------------------------------------------------------------*
 cap program drop _parse_X
 program define _parse_X, rclass
@@ -489,7 +510,7 @@ program define _graph_Name, rclass
 end
 
 *------------------------------------------------------------------------------*
-* (9) Mata functions
+* (8) Mata functions
 *------------------------------------------------------------------------------*
 mata:
 struct results {
