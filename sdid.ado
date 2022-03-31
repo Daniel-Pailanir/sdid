@@ -93,7 +93,7 @@ local SEN "standard error needs"
 if "`vce'"=="jackknife" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
-    qui by `2': egen `t2'=min(`t1')
+    qui bys `2': egen `t2'=min(`t1')
     qui levelsof `t2', local(T2)
     foreach t of local T2 {
         qui tab `2' if `4'==1 & `t2'==`t'
@@ -107,7 +107,7 @@ if "`vce'"=="jackknife" {
 if "`vce'"=="bootstrap" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
-    qui by `2': egen `t2'=min(`t1')
+    qui bys `2': egen `t2'=min(`t1')
     qui tab `t2'
     if r(r)==1 {
         qui tab `2' if `4'==1
@@ -121,12 +121,12 @@ if "`vce'"=="bootstrap" {
 if "`vce'"=="placebo" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
-    qui by `2': egen `t2'=min(`t1')
-    qui levelsof `t2', local(t2)
-    foreach t of local t2 {
-        qui count if `4'==0 & `3'==`t'
+    qui bys `2': egen `t2'=min(`t1')
+    qui levelsof `t2', local(T2)
+    foreach t of local T2 {
+        qui count if `4'==0 & `3'==`t' & `t2'==.
         local coN=r(N)
-        qui count if `4'==1 & `3'==`t'
+        qui count if `4'==1 & `3'==`t' & `t2'==`t'
         local trN=r(N)
         if (`coN'<`trN')==1 {
             di as error "Placebo `SEN' to have more controls than treated units"
