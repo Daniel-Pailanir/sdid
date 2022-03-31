@@ -88,8 +88,8 @@ if "`vce'"=="jackknife" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
     qui by `2': egen `t2'=min(`t1')
-    qui levelsof `t2', local(t2)
-    foreach t of local t2 {
+    qui levelsof `t2', local(T2)
+    foreach t of local T2 {
         qui tab `2' if `4'==1 & `t2'==`t'
         if r(r)<=1 {
             di as error "Jackknife standard error needs at least two treated units for each treatment period"
