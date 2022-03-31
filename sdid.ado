@@ -45,6 +45,11 @@ if _rc!=0 {
 else {
     tokenize `varlist'
 }
+
+if !inlist("`vce'", "bootstrap", "jackknife", "placebo") {
+    dis as error "vce() must be one of bootstrap, jackknife or placebo."
+    exit 198
+}
 qui xtset `2' `3'
 if `"`r(balanced)'"'!="strongly balanced" {
     dis as error "Panel is unbalanced."
@@ -84,15 +89,16 @@ if r(N)!=0 {
 }
 drop `test'
 
+local SEN "standard error needs"
 if "`vce'"=="jackknife" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
     qui by `2': egen `t2'=min(`t1')
-    qui levelsof `t2', local(t2)
-    foreach t of local t2 {
+    qui levelsof `t2', local(T2)
+    foreach t of local T2 {
         qui tab `2' if `4'==1 & `t2'==`t'
         if r(r)<=1 {
-            di as error "Jackknife standard error needs at least two treated units for each treatment period"
+            di as error "Jackknife `SEN' at least two treated units for each treatment period"
             exit 451
         }
     }
@@ -106,7 +112,7 @@ if "`vce'"=="bootstrap" {
     if r(r)==1 {
         qui tab `2' if `4'==1
         if r(r)==1 {
-            di as error "Bootstrap standard error needs more than one treated unit if there is a treatment period"
+            di as error "Bootstrap `SEN' more than one treated unit if there is a treatment period"
             exit 451
         }
     }
@@ -123,7 +129,7 @@ if "`vce'"=="placebo" {
         qui count if `4'==1 & `3'==`t'
         local trN=r(N)
         if (`coN'<`trN')==1 {
-            di as error "Placebo standard error needs to have more controls than treated units"
+            di as error "Placebo `SEN' to have more controls than treated units"
             exit 451
         }
     }
@@ -176,7 +182,8 @@ if "`covariates'"!="" {
     egen `nmiss' = rowmiss(`conts')
     qui sum `nmiss'
     if r(mean)!=0 {
-        dis as error "Missing values found in covariates.  A balanced panel without missing observations is required."
+        dis as error "Missing values found in covariates."
+        dis as error "A balanced panel without missing observations is required."
         exit 416
     }
 }
@@ -542,13 +549,13 @@ mata:
         Nco = sum(data[,7]:==.)/NT
         controlID = uniqrows(select(data[.,2],data[,7]:==.))  
 		
-		/////////////////////////////////////////////
-		uniqID = (uniqrows(select(data[.,2],data[,7]:==.)) \ uniqrows(select(data[.,2],data[,7]:!=.)))
-		N = panelstats(units)[,1]
-		////////////////////////////////////////////
+        if (jk==1) {
+            uniqID=(uniqrows(select(data[.,2],data[,7]:==.)) \ uniqrows(select(data[.,2],data[,7]:!=.)))
+            N = panelstats(units)[,1]
+        }
 		
         //Adjust for controls in xysnth way
-		//save original data for jackknife
+        //save original data for jackknife
         data_ori=data
         if (cols(data)>7 & controls==1) {
             data[,1] = projected(data)
@@ -662,8 +669,8 @@ mata:
 				
                 while (t<maxiter & (t<2 | dd>mindec)) {
                     t++		
-		            for (c=1;c<=(K-7);++c) {
-		                gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_l'\-1):/yNco) +
+                    for (c=1;c<=(K-7);++c) {
+                        gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_l'\-1):/yNco) +
                             err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((lambda_o'\-1):/Npre))
                     }			
                     alpha=1/t
@@ -739,7 +746,7 @@ mata:
             tau_wt_aux = J(1,rows(trt),.)
             ATT_aux = J(N,1,.)
         
-			yNco_ori=yNco
+            yNco_ori=yNco
             ind=(1::yNco)
             for (i=1; i<=N; ++i) {
                 drp=uniqID[i]
@@ -819,8 +826,7 @@ mata:
                             for (c=1;c<=(K-7);++c) {
                                 gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_aux'\-1):/yNco) +
                                 err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((omega_aux'\-1):/Npre))
-                            }
-							
+                            }							
                             alpha=1/t
                             beta=beta-alpha*gradbeta
 
@@ -837,9 +843,9 @@ mata:
                             err_l = (Ybeta_A_l,Ybeta_b_l)*(lambda_aux' \ -1)
                             err_o = (Ybeta_A_o,Ybeta_b_o)*(omega_aux' \ -1)
 							
-                            vals[1,t]=yZetaOmega^2*(lambda_aux*lambda_aux')+yZetaLambda^2*(lambda_aux*lambda_aux')+
-                                  (err_o'*err_o)/Npre+(err_l'*err_l)/yNco
-						
+                            vals[1,t]=yZetaOmega^2*(lambda_aux*lambda_aux')+
+                                     yZetaLambda^2*(lambda_aux*lambda_aux')+
+                                     (err_o'*err_o)/Npre+(err_l'*err_l)/yNco
                             if (t>1) dd = vals[1,t-1] - vals[1,t]
                         }
 						
