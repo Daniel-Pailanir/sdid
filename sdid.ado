@@ -200,6 +200,7 @@ mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
 mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
 mata: OMEGA = ATT.Omega
 mata: LAMBDA = ATT.Lambda
+mata: tau = ATT.tau
 mata: st_local("ATT", strofreal(ATT.Tau))
 
 qui count if `3'==`mint'                 //total units
@@ -212,7 +213,7 @@ local newtr=`co'-`tr'+1                 //start of treated units
 qui tab `3'                             //T
 local T=r(r)
 mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
-qui levelsof `tyear', local(tryear) //adoption local
+qui levelsof `tyear', local(tryear) matrow(adoption) //adoption local
 
 *--------------------------------------------------------------------------*
 * (3) Standard error: bootstrap
@@ -246,7 +247,6 @@ if "`vce'"=="bootstrap" {
             qui putmata bsam_id=`2' if `tyear'==. & `3'==`mint', replace
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
-
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
             mata: ATTB = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk')
             mata: ATT_b[`b',] = ATTB.Tau
@@ -308,15 +308,39 @@ else if "`vce'"=="placebo" {
 *--------------------------------------------------------------------------*
 * (5) Return output
 *--------------------------------------------------------------------------*
+*mata matrix to stata matrix
+mata: st_matrix("lambda", LAMBDA)
+mata: st_matrix("omega", OMEGA)
+mata: st_matrix("omega", OMEGA)
+mata: st_matrix("tau", tau)
+matrix tau=(tau,adoption)
+
 ereturn local se `se' 
 ereturn local ATT `ATT'
-    
-*Display results
-di as text " "
-di as text "{c TLC}{hline 8}{c TT}{hline 11}{c TRC}"
-di as text "{c |} {bf: ATT}   {c |} " as result %9.5f `ATT'  as text " {c |}"
-di as text "{c |} {bf: se}    {c |} " as result %9.5f `se' as text " {c |}"
-di as text "{c BLC}{hline 8}{c BT}{hline 11}{c BRC}"   	
+ereturn matrix tau tau
+ereturn matrix lambda lambda
+ereturn matrix omega omega
+ereturn matrix adoption adoption
+
+
+local t=`ATT'/`se'
+*local pval=0 //(2 * ttail(df_r, abs(`ATT'/`se')))
+local LCI=`ATT'-1.96*`se'
+local UCI=`ATT'+1.96*`se'
+
+di as text ""
+di as text "{hline 13}{c TT}{hline 53}"
+di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t     [95% Conf. Interval]" 
+di as text "{hline 13}{c +}{hline 53}"
+di as text "   treatment" " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' "  " %9.5f `LCI' "   " %9.5f `UCI'
+di as text "{hline 13}{c BT}{hline 53}"
+
+/*di as text ""
+di as text "{hline 13}{c TT}{hline 63}"
+di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t      P>|t|    [95% Conf. Interval]" 
+di as text "{hline 13}{c +}{hline 63}"
+di as text "   treatment" " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' %9.3f `pval' "   " %9.5f `LCI' "   " %9.5f `UCI'
+di as text "{hline 13}{c BT}{hline 63}"*/
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
@@ -1009,3 +1033,4 @@ mata:
         return(Yprojected)
 }
 end
+
