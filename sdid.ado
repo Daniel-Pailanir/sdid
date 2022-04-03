@@ -31,6 +31,8 @@ To do:
 * (0) Error checks in parsing
 *------------------------------------------------------------------------------*
 **Check if group ID is numeric or string
+local clustvar "`2'"
+
 local stringvar=0
 cap count if `2'==0
 if _rc!=0 {
@@ -307,19 +309,34 @@ else if "`vce'"=="placebo" {
 *--------------------------------------------------------------------------*
 * (5) Return output
 *--------------------------------------------------------------------------*
+ereturn clear
 *mata matrix to stata matrix
 mata: st_matrix("lambda", LAMBDA)
 mata: st_matrix("omega", OMEGA)
 mata: st_matrix("omega", OMEGA)
 mata: st_matrix("tau", tau)
 matrix tau=(tau,adoption)
+qui levelsof `2'
+local nclust r(r)
 
-ereturn local se `se' 
-ereturn local ATT `ATT'
-ereturn matrix tau tau
-ereturn matrix lambda lambda
-ereturn matrix omega omega
+
+ereturn scalar se     =`se' 
+ereturn scalar ATT    =`ATT'
+ereturn scalar reps   =`reps'
+ereturn scalar N_clust=`nclust'
+
+matrix colnames tau = Tau Year
+ereturn matrix tau      tau
+ereturn matrix lambda   lambda
+ereturn matrix omega    omega
 ereturn matrix adoption adoption
+
+ereturn local cmdline  "sdid `0'"
+ereturn local clustvar `clustvar'
+ereturn local depvar   `1'
+ereturn local vce      "`vce'"
+ereturn local title    "Synthetic Difference-in-Differences"
+ereturn local cmd      "sdid"
 
 
 local t=`ATT'/`se'
