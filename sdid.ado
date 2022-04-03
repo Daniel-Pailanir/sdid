@@ -24,7 +24,6 @@ version 13.0
 
 /*
 To do:
- (9)  Work out final display format
  (11) Write help file
 */
 
@@ -32,6 +31,8 @@ To do:
 * (0) Error checks in parsing
 *------------------------------------------------------------------------------*
 **Check if group ID is numeric or string
+local clustvar "`2'"
+
 local stringvar=0
 cap count if `2'==0
 if _rc!=0 {
@@ -308,39 +309,53 @@ else if "`vce'"=="placebo" {
 *--------------------------------------------------------------------------*
 * (5) Return output
 *--------------------------------------------------------------------------*
+ereturn clear
 *mata matrix to stata matrix
 mata: st_matrix("lambda", LAMBDA)
 mata: st_matrix("omega", OMEGA)
 mata: st_matrix("omega", OMEGA)
 mata: st_matrix("tau", tau)
 matrix tau=(tau,adoption)
+qui levelsof `2'
+local nclust r(r)
 
-ereturn local se `se' 
-ereturn local ATT `ATT'
-ereturn matrix tau tau
-ereturn matrix lambda lambda
-ereturn matrix omega omega
+
+ereturn scalar se     =`se' 
+ereturn scalar ATT    =`ATT'
+ereturn scalar reps   =`reps'
+ereturn scalar N_clust=`nclust'
+
+matrix colnames tau = Tau Year
+ereturn matrix tau      tau
+ereturn matrix lambda   lambda
+ereturn matrix omega    omega
 ereturn matrix adoption adoption
+
+ereturn local cmdline  "sdid `0'"
+ereturn local clustvar `clustvar'
+ereturn local depvar   `1'
+ereturn local vce      "`vce'"
+ereturn local title    "Synthetic Difference-in-Differences"
+ereturn local cmd      "sdid"
 
 
 local t=`ATT'/`se'
-*local pval=0 //(2 * ttail(df_r, abs(`ATT'/`se')))
-local LCI=`ATT'-1.96*`se'
-local UCI=`ATT'+1.96*`se'
+local pval= 2 * (1-normal(abs(`ATT'/`se'))) 
+local LCI=`ATT'+invnormal(0.025)*`se'
+local UCI=`ATT'+invnormal(0.975)*`se'
+
 
 di as text ""
-di as text "{hline 13}{c TT}{hline 53}"
-di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t     [95% Conf. Interval]" 
-di as text "{hline 13}{c +}{hline 53}"
-di as text "   treatment" " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' "  " %9.5f `LCI' "   " %9.5f `UCI'
-di as text "{hline 13}{c BT}{hline 53}"
-
-/*di as text ""
+di as text ""
+di as text "Synthetic Difference-in-Differences Estimator" 
+di as text ""
 di as text "{hline 13}{c TT}{hline 63}"
 di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t      P>|t|    [95% Conf. Interval]" 
 di as text "{hline 13}{c +}{hline 63}"
 di as text "   treatment" " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' %9.3f `pval' "   " %9.5f `LCI' "   " %9.5f `UCI'
-di as text "{hline 13}{c BT}{hline 63}"*/
+di as text "{hline 13}{c BT}{hline 63}"
+di as text "95% CIs and p-values are based on Large-Sample approximations."
+di as text "Refer to Arkhangelsky et al., (2020) for theoretical derivations." 
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
@@ -807,7 +822,8 @@ mata:
                     omega_aux = sum_norm(omega_aux[id1])
 
                     if (controls==0 | controls==1) {
-                        tau_aux[yr] = (-omega_aux, J(1,yNtr,1/yNtr))*Y_aux*(-lambda_aux, J(1,Npost,1/Npost))'
+                        tau_aux[yr] = (-omega_aux, J(1,yNtr,1/yNtr))*Y_aux*(-lambda_aux,
+                            J(1,Npost,1/Npost))'
                         tau_wt_aux[yr] = yNtr*Npost	
                     }
 					
@@ -841,15 +857,16 @@ mata:
                         t=0
                         dd=1	
 						
-                        //update wights
+                        //update weights
                         err_l = (A_l_aux, b_l_aux)*(lambda_aux' \ -1)
                         err_o = (A_o_aux, b_o_aux)*(omega_aux' \ -1)	
 						
                         while (t<maxiter & (t<2 | dd>mindec)) {
                             t++	
                             for (c=1;c<=(K-7);++c) {
-                                gradbeta[c]=-(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_aux'\-1):/yNco) +
-                                err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((omega_aux'\-1):/Npre))
+                                gradbeta[c]=
+                                    -(err_l'*((*A[c])[1..yNco,1..(Npre+1)])*((lambda_aux'\-1):/yNco) +
+                                    err_o'*((*A[c])[1..(yNco+1),1..Npre])'*((omega_aux'\-1):/Npre))
                             }							
                             alpha=1/t
                             beta=beta-alpha*gradbeta
@@ -1033,4 +1050,5 @@ mata:
         return(Yprojected)
 }
 end
+
 
