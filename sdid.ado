@@ -22,10 +22,6 @@ version 13.0
     ;
 #delimit cr  
 
-/*
-To do:
- (11) Write help file
-*/
 
 *------------------------------------------------------------------------------*
 * (0) Error checks in parsing
