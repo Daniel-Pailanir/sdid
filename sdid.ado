@@ -1,5 +1,5 @@
-*! sdid: Synthetic Difference in Differences
-*! Version 0.8.0 January 25, 2022
+*! sdid: Synthetic Difference-in-Differences
+*! Version 1.0.0 April 4, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
