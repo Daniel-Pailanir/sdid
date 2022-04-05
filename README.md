@@ -3,6 +3,11 @@
 This Stata package implements the synthetic difference-in-differences estimation procedure, along with a range of inference and graphing procedures, following Arkhangelsky et al., (2021).  Arkhangelsky et al. provide a code implementation in R, with accompanying materials here: [synthdid](https://synth-inference.github.io/synthdid/). 
 Here we provide a native Stata implementation, principally written in Mata.  This package extends the funcionality of the original R package, allowing very simply for estimation in contexts with staggered adoption over multiple treatment periods (as well as in a single adoption period as in the original code). 
 
+To install directly into Stata:
+```s
+ssc install sdid
+```
+
 ## Inputs
 + Y: Outcome variable (numeric)
 + S: Unit variable (numeric or string)
