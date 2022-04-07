@@ -359,14 +359,15 @@ di as text "Refer to Arkhangelsky et al., (2020) for theoretical derivations."
 if length("`graph'")!=0 {
     qui tab `tyear'
     local trN=r(r)
-    mata: year=LAMBDA[1::`T',(`trN'+1)]
+    mata: timevar=LAMBDA[1::`T',(`trN'+1)]
     mata: id=OMEGA[1::`co',(`trN'+1)]
 	
     foreach time of local tryear {
         preserve
         mata: weight_lambda_`time'=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
         clear
-        getmata weight_lambda_`time' year, force
+        getmata weight_lambda_`time' timevar, force
+        ren timevar `3'
         tempfile lambda_weights_`time'
         qui save `lambda_weights_`time''
         clear
