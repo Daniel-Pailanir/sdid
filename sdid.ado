@@ -18,6 +18,7 @@ version 13.0
     g2_opt(string)
     unstandardized
     graph_export(string asis)
+    msize(passthru)
     ]
     ;
 #delimit cr  
@@ -472,11 +473,14 @@ if length("`graph'")!=0 {
             local ex=1
         }
         else local ex=0
+
+        if length(`"`msize'"')==0 local ms msize(tiny)
+        else local ms `msize'
         
         lab var diff "Difference"
         lab var order "Group"
         #delimit ;
-        twoway scatter diff order if omega!=0 [aw=omega], msize(tiny)
+        twoway scatter diff order if omega!=0 [aw=omega], `ms'
             || scatter diff order if omega==0, m(X) 
             xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
             yline(`tau', lc(red)) 
