@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.0.0 April 01, 2022}
+{* *! version 1.0.0 April 04, 2022}
 {title:Title}
 
 {p 4 4 2}
@@ -25,6 +25,8 @@ Optional {it:type} can be specified, as either "optimized" (the default) or "pro
 {synopt :{opt graph_export}({it:string}, {it:{help graph export:type}})} option allowing for generated graphs to be saved to the disk.{p_end}
 {synopt :{opt unstandardized}} In the case of "optimized" covariates, by default covariates will be standardized as z-scores,
 unless the unstandardized option is specified.{p_end}
+{synopt :{opt msize}({it:markersizestylelist})} Allows for the size of weights displayed on generated scatter plots to be modified
+(only relevant when graphs are requested).{p_end}
 
 {pstd}
 {p_end}
@@ -147,6 +149,14 @@ Optionally, a stub can be specified, in which case this will be prepended to exp
 {opt unstandardized} if controls are included and the "optimized" method is specified, controls will be standardized as Z-scores prior to finding optimal weights. This avoids problems with optimization when control variables have very
 high dispersion. If unstandardized is specified, controls will simply be entered in their original units.
 This option should be used with care.
+
+
+{pstd}
+{p_end}
+{phang}
+{opt msize}({it:markersizestylelist}) When graphing, plots export points corresponding in size to the
+weights received by each control unit.  This option allows for the size of these points to be scaled,
+for example by indicating msize(large) if larger points are desired.
 
 {pstd}
 {p_end}
