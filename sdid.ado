@@ -94,7 +94,7 @@ if "`vce'"=="jackknife" {
     qui bys `2': egen `t2'=min(`t1')
     qui levelsof `t2', local(T2)
     foreach t of local T2 {
-        qui tab `2' if `4'==1 & `t2'==`t'
+        qui levelsof `2' if `4'==1 & `t2'==`t'
         if r(r)<=1 {
             di as error "Jackknife `SEN' at least two treated units for each treatment period"
             exit 451
@@ -106,9 +106,9 @@ if "`vce'"=="bootstrap" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
     qui bys `2': egen `t2'=min(`t1')
-    qui tab `t2'
+    qui levelsof `t2'
     if r(r)==1 {
-        qui tab `2' if `4'==1
+        qui levelsof `2' if `4'==1
         if r(r)==1 {
             di as error "Bootstrap `SEN' more than one treated unit if there is a treatment period"
             exit 451
@@ -208,7 +208,7 @@ local co=r(N)
 qui count if `treated'==1 & `3'==`mint' //treated units (total)
 local tr=r(N)
 local newtr=`co'-`tr'+1                 //start of treated units
-qui tab `3'                             //T
+qui levelsof `3'                        //T
 local T=r(r)
 mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
 qui levelsof `tyear', local(tryear) matrow(adoption) //adoption local
@@ -358,7 +358,7 @@ di as text "Refer to Arkhangelsky et al., (2020) for theoretical derivations."
 * (6) Graphing
 *--------------------------------------------------------------------------*
 if length("`graph'")!=0 {
-    qui tab `tyear'
+    qui levelsof `tyear'
     local trN=r(r)
     mata: timevar=LAMBDA[1::`T',(`trN'+1)]
     mata: id=OMEGA[1::`co',(`trN'+1)]
