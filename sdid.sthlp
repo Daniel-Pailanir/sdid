@@ -213,7 +213,7 @@ An example based on Propostion 99 (Abadie et al., 2010), with a single adoption 
 Estimate with SDID, exporting weight and trend graphs:
 
 {pstd}
- . {stata sdid packspercapita state year treated, vce(placebo) seed(1213) graph g1_opt(xtitle("")) g2_opt(ylabel(0(50)150, axis(2)))}
+ . {stata sdid packspercapita state year treated, vce(placebo) seed(1213) graph g1_opt(xtitle("")) g2_opt(ylabel(0(50)150))}
  
 
 {pstd}
