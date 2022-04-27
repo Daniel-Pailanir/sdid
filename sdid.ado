@@ -508,9 +508,9 @@ if length("`graph'")!=0 {
         getmata lambda, force
 
         #delimit ;
-        twoway line `Y_omega'Control `3', yaxis(2) lp(solid)
-    	    || area lambda `3', yaxis(1) lp(solid) ylabel(0(1)5, axis(1)) ysc(off)
-            || line `Y_omega'Treated `3', yaxis(2) lp(solid)
+        twoway line `Y_omega'Control `3', yaxis(1) lp(solid)
+            || line `Y_omega'Treated `3', yaxis(1) lp(solid)
+    	    || area lambda `3', yaxis(2) lp(solid) ylabel(0(1)5, axis(2)) yscale(off axis(2))
             || , 
             xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
            `g2_opt' name(g2_`time', replace);
@@ -600,13 +600,11 @@ mata:
         if (cols(data)>7 & controls==1) {
             data[,1] = projected(data)
         }
-
         //Find years which change treatment
         trt = select(uniqrows(data[,7]),uniqrows(data[,7]):!=.)
         //Iterate over years, calculating each estimate
         tau    = J(rows(trt),1,.)
         tau_wt = J(1,rows(trt),.)
-
         if (inference==0) {
             Omega = J(Nco, rows(trt),.)
             Lambda = J(NT, rows(trt),.)
@@ -617,7 +615,6 @@ mata:
             cond = cond1+cond2
             yNtr = sum(cond1)
             yNco = sum(cond2)
-
             ydata = select(data,cond)
             yunits = panelsetup(ydata,2)
             yNT = panelstats(yunits)[,3]
@@ -626,24 +623,19 @@ mata:
             yNtr = yNtr/yNT
             yNco = yNco/yNT
             yTpost = max(ydata[,4])-trt[yr]+1
-
             pretreat = select(uniqrows(data[,4]),uniqrows(data[,4]):<trt[yr])
             Npre  = rows(pretreat)
             Npost = yNT-Npre
-
             //Calculate Zeta
             ndiff = yNG*(yNT-1)
             ylag = ydata[1..(yN-1),1]
             ylag = (. \ ylag)
-
             diff = ydata[.,1]-ylag
-
             first = mod(0::(yN-1),yNT):==0
             postt = ydata[,4]:>=trt[yr]
             dropc = first+postt+ydata[,6]
             prediff = select(diff,dropc:==0)
             sig_t = sqrt(variance(prediff))
-
             EtaLambda = 1e-6
             EtaOmega = (yNtr*yTpost)^(1/4)
             yZetaOmega  = EtaOmega*sig_t
@@ -653,7 +645,6 @@ mata:
             ytreat = ydata[,7]:==trt[yr]
             ytreat=panelsum(ytreat,yunits)
             ytreat=ytreat/yNT
-
             Y = rowshape(ydata[.,1],yNG)
             Y0 = select(Y,ytreat:==0)
             Y1 = select(Y,ytreat:==1)
@@ -715,13 +706,11 @@ mata:
                     }			
                     alpha=1/t
                     beta=beta-alpha*gradbeta
-
                     //~ contract3
                     C = J(yNco+1,Npre+1,0)
                     for (c=1;c<=(K-7);++c) {
                         C = C + beta[c]*(*A[c])
                     }
-
                     Ybeta=((Y0[,1..Npre],promt)\(mean(Y1[.,1..Npre]),0))-C
 					
                     Ybeta_A_l = Ybeta[1::yNco,1::Npre]:-mean(Ybeta[1::yNco,1::Npre])
@@ -738,7 +727,6 @@ mata:
                               (err_o'*err_o)/Npre+(err_l'*err_l)/yNco
                     if (t>1) dd = vals[1,t-1] - vals[1,t]
                 }
-
                 if (inference==0) {
                     Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
                     Omega[.,yr] = lambda_o'
@@ -779,7 +767,6 @@ mata:
             Lambda = (Lambda, uniqrows(data[,4]))
             Lambda = (Lambda \ (trt', .))
         }
-
         //jackknife
         if (jk==1) {
             tau_aux    = J(rows(trt),1,.)
@@ -817,11 +804,9 @@ mata:
                     Y_aux = rowshape(ydata_aux[.,1],yNG)
 					
                     lambda_aux = select(Lambda'[.,1::Npre],Lambda'[,rows(Lambda)]:==trt[yr])  
-
                     id1=select(ind, ind:!=i)
                     omega_aux = select(Omega'[.,1::yNco_ori],Omega'[,rows(Omega)]:==trt[yr]) 
                     omega_aux = sum_norm(omega_aux[id1])
-
                     if (controls==0 | controls==1) {
                         tau_aux[yr] = (-omega_aux, J(1,yNtr,1/yNtr))*Y_aux*(-lambda_aux,
                             J(1,Npost,1/Npost))'
@@ -871,12 +856,10 @@ mata:
                             }							
                             alpha=1/t
                             beta=beta-alpha*gradbeta
-
                             C = J(yNco+1,Npre+1,0)
                             for (c=1;c<=(K-7);++c) {
                                 C = C + beta[c]*(*A[c])
                             }
-
                             Ybeta=((Y0_aux[,1..Npre],promt_aux)\(mean(Y1_aux[.,1..Npre]),0))-C
                             Ybeta_A_l = Ybeta[1::yNco,1::Npre]:-mean(Ybeta[1::yNco,1::Npre])
                             Ybeta_b_l = Ybeta[1::yNco,Npre+1]:-mean(Ybeta[1::yNco,Npre+1])
@@ -1051,5 +1034,4 @@ mata:
         return(Yprojected)
 }
 end
-
 
