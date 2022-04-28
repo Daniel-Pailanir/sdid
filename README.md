@@ -5,7 +5,7 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 
 To install directly into Stata:
 ```s
-ssc install sdid
+ssc install sdid, replace
 ```
 or using ```github``` command:
 ```s
