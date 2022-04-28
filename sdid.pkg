@@ -1,0 +1,8 @@
+v 1.0.0
+d 'SDID': Synthetic Difference in Differences
+d 
+d Distribution-Date:   2020-04-27
+d License: MIT
+d 
+F sdid.ado
+F sdid.sthlp
