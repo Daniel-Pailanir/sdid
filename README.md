@@ -69,5 +69,12 @@ Refer to Arkhangelsky et al., (2020) for theoretical derivations.
 ![g1](graphs/sdid_weights1989.png)
 ![g2](graphs/sdid_trends1989.png)
 
+<div style="width: 60%; height: 60%">
+  
+  ![](graphs/sdid_weights1989.png)
+  
+</div>
+
+
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
