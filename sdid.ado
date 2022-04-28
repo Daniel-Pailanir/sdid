@@ -14,8 +14,8 @@ version 13.0
     reps(integer 50)
     covariates(string asis)
     graph
-    g1_opt(string)
-    g2_opt(string)
+    g1_opt(string asis)
+    g2_opt(string asis)
     unstandardized
     graph_export(string asis)
     msize(passthru)
