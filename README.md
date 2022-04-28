@@ -44,5 +44,27 @@ sdid packspercapita state year treated, vce(placebo) reps(10) seed(1213)
 #delimit cr
 ```
 
+The code returns the following results
+
+````s
+Placebo replications (100). This may take some time.
+----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5
+..................................................     50
+..................................................     100
+
+
+Synthetic Difference-in-Differences Estimator
+
+-----------------------------------------------------------------------------
+packsperca~a |     ATT     Std. Err.     t      P>|t|    [95% Conf. Interval]
+-------------+---------------------------------------------------------------
+   treatment | -15.60383    9.20931    -1.69    0.090   -33.65374     2.44608
+-----------------------------------------------------------------------------
+95% CIs and p-values are based on Large-Sample approximations.
+Refer to Arkhangelsky et al., (2020) for theoretical derivations.
+(file sdid_weights1989.eps written in EPS format)
+(file sdid_trends1989.eps written in EPS format)
+```
+
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
