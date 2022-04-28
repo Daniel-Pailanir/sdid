@@ -66,8 +66,7 @@ Refer to Arkhangelsky et al., (2020) for theoretical derivations.
 (file sdid_trends1989.eps written in EPS format)
 ```
 
-![g1](graphs/sdid_weights1989.png)
-![g2](graphs/sdid_trends1989.png)
+
 
 <div style="width: 50%; height: 50%">
      
