@@ -46,7 +46,7 @@ sdid packspercapita state year treated, vce(placebo) reps(10) seed(1213)
 
 The code returns the following results
 
-````s
+```s
 Placebo replications (100). This may take some time.
 ----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5
 ..................................................     50
