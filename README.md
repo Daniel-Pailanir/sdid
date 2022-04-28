@@ -7,7 +7,10 @@ To install directly into Stata:
 ```s
 ssc install sdid
 ```
-
+or using ```github``` command:
+```s
+github install Daniel-Pailanir/sdid
+```
 ## Inputs
 + Y: Outcome variable (numeric)
 + S: Unit variable (numeric or string)
