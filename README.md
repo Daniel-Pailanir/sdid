@@ -30,5 +30,20 @@ sdid Y S T D, vce(method) seed(#) reps(#) covariates(varlist [, method]) graph g
 + unstandardized: If controls are included and the "optimized" method is specified, controls will be standardized as Z-scores prior to finding optimal weights.  This avoids problems with optimization when control variables have very high dispersion.  If unstandardized is specified, controls will simply be entered in their original units.  This option should be used with care.
 + graph_export( [stub], type): Generated graphs can be saved to the disk using this option.  Graphs will be saved as weightsYYYY and trendsYYYY for each of the unit-specific weights and outcome trends respectively, where YYYY refers to each treatment adoption period.  Two graphs will be generated for each treatment adoption period.  If this option is specified, type must be specified, which refers to a valid Stata graph type (eg ".eps", ".pdf", and so forth).  Optionally, a stub can be specified, in which case this will be prepended to exported graph names. 
 
+## Running an example
+```s
+webuse set www.damianclarke.net/stata/
+webuse prop99_example.dta, clear
+
+#delimit ;
+sdid packspercapita state year treated, vce(placebo) reps(10) seed(1213) 
+     graph g1_opt(xtitle("") ylabel(-35(5)10) scheme(plotplainblind)) 
+	   g2_opt(ylabel(0(50)150) xlabel(1970(5)2000) ytitle("Packs per capita") 
+	          xtitle("") text(125 1995 "ATT = -15.604" " SE = (9.209)") 
+		        scheme(plotplainblind))
+    graph_export(sdid_, .eps) ;
+#delimit cr
+```
+
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
