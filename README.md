@@ -69,10 +69,8 @@ Refer to Arkhangelsky et al., (2020) for theoretical derivations.
 ![g1](graphs/sdid_weights1989.png)
 ![g2](graphs/sdid_trends1989.png)
 
-<div style="width: 60%; height: 60%">
-  
+<div style="width: 50%; height: 50%">
   ![](graphs/sdid_weights1989.png)
-  
 </div>
 
 
