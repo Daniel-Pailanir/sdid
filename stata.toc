@@ -1,0 +1,7 @@
+v 1.0.0
+d dpailanir@fen.uchile.cl and dclarke@fen.uchile.cl
+d https://github.com/Daniel-Pailanir/sdid
+
+d 'sdid': Synthetic Difference in Differences
+
+p sdid
