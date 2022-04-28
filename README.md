@@ -69,7 +69,9 @@ Refer to Arkhangelsky et al., (2020) for theoretical derivations.
 
 
 <div style="width: 50%; height: 50%">
+     
   ![](graphs/sdid_weights1989.png)
+     
 </div>
 
 
