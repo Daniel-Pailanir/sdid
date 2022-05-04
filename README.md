@@ -19,7 +19,7 @@ github install Daniel-Pailanir/sdid
 
 ## Syntax
 ```s
-sdid Y S T D, vce(method) seed(#) reps(#) covariates(varlist [, method]) graph g1_opt(string) g2_opt(string) unstandardized graph_export([stub] , type)
+sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method]) graph g1_opt(string) g2_opt(string) unstandardized graph_export([stub] , type)
 ```
 + vce(): bootstrap, jackknife and placebo standard error.
 + seed(): seed define for pseudo-random numbers.
