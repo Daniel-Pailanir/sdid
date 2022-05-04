@@ -8,7 +8,7 @@ program sdid, eclass
 version 13.0
 	
 #delimit ;
-    syntax varlist(min=4 max=4), vce(string) 
+    syntax varlist(min=4 max=4) [if] [in], vce(string) 
     [
     seed(numlist integer >0 max=1)
     reps(integer 50)
@@ -27,6 +27,9 @@ version 13.0
 *------------------------------------------------------------------------------*
 * (0) Error checks in parsing
 *------------------------------------------------------------------------------*
+tempvar touse
+mark `touse' `if' `in'
+
 **Check if group ID is numeric or string
 local clustvar "`2'"
 
@@ -48,6 +51,12 @@ if !inlist("`vce'", "bootstrap", "jackknife", "placebo") {
     dis as error "vce() must be one of bootstrap, jackknife or placebo."
     exit 198
 }
+
+if (length("`if'")+length("`in'")>0) {
+    preserve
+    qui keep if `touse'
+}
+
 qui xtset `2' `3'
 if `"`r(balanced)'"'!="strongly balanced" {
     dis as error "Panel is unbalanced."
@@ -76,7 +85,7 @@ if r(max)!=0 {
     exit 459
 }
 tempvar test
-qui bys `2' (`3'): gen `test'=`4'-`4'[_n-1]
+qui bys `2' (`3'): gen `test'=`4'-`4'[_n-1] 
 qui sum `test'
 qui count if `test'!=0&`test'!=1&`test'!=.
 if r(N)!=0 {
@@ -105,7 +114,7 @@ if "`vce'"=="jackknife" {
 if "`vce'"=="bootstrap" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
-    qui bys `2': egen `t2'=min(`t1')
+    qui bys `2': egen `t2'=min(`t1') 
     qui levelsof `t2'
     if r(r)==1 {
         qui levelsof `2' if `4'==1
@@ -118,8 +127,8 @@ if "`vce'"=="bootstrap" {
 
 if "`vce'"=="placebo" {
     tempvar t1 t2
-    qui gen `t1'=`3' if `4'==1
-    qui bys `2': egen `t2'=min(`t1')
+    qui gen `t1'=`3' if `4'==1 
+    qui bys `2': egen `t2'=min(`t1') 
     qui levelsof `t2', local(T2)
     foreach t of local T2 {
         qui count if `4'==0 & `3'==`t' & `t2'==.
@@ -133,25 +142,36 @@ if "`vce'"=="placebo" {
     }
 }
 
+if (length("`if'")+length("`in'")>0) {
+    restore
+}
+
 *------------------------------------------------------------------------------*
 * (1) Basic set-up 
 *------------------------------------------------------------------------------*
 tempvar treated ty tyear n
-qui gen `ty' = `3' if `4'==1
-qui bys `2': egen `treated' = max(`4')
-qui by  `2': egen `tyear'   = min(`ty')
+qui gen `ty' = `3' if `4'==1 
+qui bys `2': egen `treated' = max(`4') 
+qui by  `2': egen `tyear'   = min(`ty') 
+
+if (length("`if'")+length("`in'")>0) {
+    preserve
+    qui keep if `touse'
+}
 sort `3' `treated' `2'
 gen `n'=_n
 qui sum `3'
 local mint=r(min)
 qui putmata ori_id=`2' ori_pos=`n' if `3'==`mint' & `tyear'==., replace
-
+if (length("`if'")+length("`in'")>0) {
+    restore
+}
 
 if length("`graph'")!=0&`stringvar'==1 {
     preserve
-    qui sum `3'
+    qui sum `3' if `touse'
     **Save original state names for later use with graph
-    qui keep if `3' == r(min)
+    qui keep if `3' == r(min) & `touse'
     keep `groupvar' `2'
     tempfile stateString
     rename `groupvar' stateName
@@ -171,14 +191,14 @@ if "`covariates'"!="" {
         local sconts
         foreach var of varlist `conts' {
             tempvar z`var'
-            egen `z`var''= std(`var')
+            egen `z`var''= std(`var') if `touse'
             local sconts `sconts' `z`var''
         }
         local conts `sconts'
     }
     tempvar nmiss
     egen `nmiss' = rowmiss(`conts')
-    qui sum `nmiss'
+    qui sum `nmiss' if `touse'
     if r(mean)!=0 {
         dis as error "Missing values found in covariates."
         dis as error "A balanced panel without missing observations is required."
@@ -193,6 +213,11 @@ if "`covariates'"!="" {
 
 if "`vce'"=="jackknife" local jk=1
 else local jk=0
+
+if (length("`if'")+length("`in'")>0) {
+    preserve
+    qui keep if `touse'
+}
 
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
 mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
@@ -213,6 +238,10 @@ local T=r(r)
 mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
 qui levelsof `tyear', local(tryear) matrow(adoption) //adoption local
 
+if (length("`if'")+length("`in'")>0) {
+    restore
+}
+
 *--------------------------------------------------------------------------*
 * (3) Standard error: bootstrap
 *--------------------------------------------------------------------------*
@@ -224,9 +253,10 @@ if "`vce'"=="bootstrap" {
 	
     dis "Bootstrap replications (`reps'). This may take some time."
     dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
-
+	
     while `b'<=`B' {
         preserve
+        qui keep if `touse'
         keep `1' `2' `3' `4' `treated' `tyear' `conts'
         tempvar cID
         bsample, cluster(`2') idcluster(`cID')
@@ -252,6 +282,7 @@ if "`vce'"=="bootstrap" {
         }
         restore
     }
+	
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_b)))
     mata: st_local("se", strofreal(se)) 
 }
@@ -270,13 +301,16 @@ else if "`vce'"=="placebo" {
 	
     while `b'<=`B' {
         preserve
+        qui keep if `touse'
+		sort `3' `2'
+		
         keep `1' `2' `3' `4' `tyear' `conts'
         tempvar r rand id
         qui gen `r'=runiform() in 1/`co'
         bys `2': egen `rand'=sum(`r')
         qui drop if `tyear'!=.        //drop treated units
         egen `id' = group(`rand')     //gen numeric order by runiform variable
-		
+
         local i=1
         forvalues y=`newtr'/`co' {
             qui replace `tyear'=tryears[`i',1] if `id'==`y'
@@ -288,17 +322,17 @@ else if "`vce'"=="placebo" {
 		
         display in smcl "." _continue
         if mod(`b',50)==0 dis "     `b'"
-			
+		
         qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
         mata: indicator=smerge(psam_id, (ori_id, ori_pos))
-        mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]		
-		
+        mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
         mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk')
         mata: ATT_p[`b',] = ATTP.Tau
         local ++b
         restore
     }
+	
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_p)))
     mata: st_local("se", strofreal(se))
 }
@@ -362,7 +396,6 @@ if length("`graph'")!=0 {
     local trN=r(r)
     mata: timevar=LAMBDA[1::`T',(`trN'+1)]
     mata: id=OMEGA[1::`co',(`trN'+1)]
-	
     foreach time of local tryear {
         preserve
         mata: weight_lambda_`time'=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
@@ -379,19 +412,18 @@ if length("`graph'")!=0 {
         qui save `omega_weights_`time''
         restore
     }
-		
+
     local TAU=1
     foreach time of local tryear {
         preserve
-        qui keep if `tyear'==. | `tyear'==`time'
+        qui keep if (`tyear'==. | `tyear'==`time') & `touse'
         qui levelsof `2' if `tyear'==`time', local(tr_unit)
         qui levelsof `2', local(id2)
         qui count if `tyear'==`time' & `3'==`time'
         local Ntr=r(N)
         qui merge m:1 `3' using `lambda_weights_`time'', nogen
-        
-        mata: Z=J(`N',5,.)
 
+        mata: Z=J(`N',5,.)
         local i=1
         foreach s of local id2 {
             qui sum `1' if `3'>=`time' & `2'==`s'
@@ -492,6 +524,7 @@ if length("`graph'")!=0 {
         local ++TAU
         
         preserve
+		qui keep if `touse'
         qui merge m:1 `2' using `omega_weights_`time'' , nogen		
         qui keep if `tyear'==. | `tyear'==`time'
         tempvar Y_omega tipo
