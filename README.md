@@ -7,9 +7,9 @@ To install directly into Stata:
 ```s
 ssc install sdid, replace
 ```
-or using ```github``` command:
+or using ```net install``` command:
 ```s
-github install Daniel-Pailanir/sdid
+net install sdid, from("https://raw.githubusercontent.com/daniel-pailanir/sdid/master") replace
 ```
 ## Inputs
 + Y: Outcome variable (numeric)
