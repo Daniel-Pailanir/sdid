@@ -25,7 +25,6 @@ version 13.0
     unstandardized
     graph_export(string asis)
     msize(passthru)
-    large
     ]
     ;
 #delimit cr  
@@ -42,7 +41,7 @@ local clustvar "`2'"
 
 local stringvar=0
 cap count if `2'==0
-if _rc!=0|length(`"`large'"')!=0 {
+if _rc!=0 {
     local stringvar=1
     local groupvar `2'
     tempvar ID
@@ -122,8 +121,8 @@ if "`vce'"=="bootstrap" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
     qui bys `2': egen `t2'=min(`t1') 
-    qui levelsof `t2'
-    if r(r)==1 {
+    qui sum `t2' 
+    if r(min)==r(max) {
         qui sum `2' if `4'==1
         if r(min)==r(max) {
             local errBS "there is a single treatment period"
