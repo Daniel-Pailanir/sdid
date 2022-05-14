@@ -1,12 +1,18 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 1.0.0 April 4, 2022
+*! Version 1.1.0 May 13, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
+
+/*
+Versions
+1.0.0 Apr 04, 2022: Original version, staggered adoption
+1.1.0 May xx, 2022: Correction for 13.0 Mata, bug fix, adding if/in
+*/
 
 cap program drop sdid
 program sdid, eclass
 version 13.0
-	
+
 #delimit ;
     syntax varlist(min=4 max=4) [if] [in], vce(string) 
     [
@@ -103,8 +109,8 @@ if "`vce'"=="jackknife" {
     qui bys `2': egen `t2'=min(`t1')
     qui levelsof `t2', local(T2)
     foreach t of local T2 {
-        qui levelsof `2' if `4'==1 & `t2'==`t'
-        if r(r)<=1 {
+        qui sum `2' if `4'==1 & `t2'==`t'
+        if r(min)==r(max) {
             di as error "Jackknife `SEN' at least two treated units for each treatment period"
             exit 451
         }
@@ -115,11 +121,12 @@ if "`vce'"=="bootstrap" {
     tempvar t1 t2
     qui gen `t1'=`3' if `4'==1
     qui bys `2': egen `t2'=min(`t1') 
-    qui levelsof `t2'
-    if r(r)==1 {
-        qui levelsof `2' if `4'==1
-        if r(r)==1 {
-            di as error "Bootstrap `SEN' more than one treated unit if there is a treatment period"
+    qui sum `t2' 
+    if r(min)==r(max) {
+        qui sum `2' if `4'==1
+        if r(min)==r(max) {
+            local errBS "there is a single treatment period"
+            di as error "Bootstrap `SEN' more than one treated unit if `errBS'"
             exit 451
         }
     }
@@ -221,10 +228,10 @@ if (length("`if'")+length("`in'")>0) {
 
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
 mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
-mata: OMEGA = ATT.Omega
-mata: LAMBDA = ATT.Lambda
-mata: tau = ATT.tau
-mata: st_local("ATT", strofreal(ATT.Tau))
+mata: OMEGA  = st_matrix("omega")
+mata: LAMBDA = st_matrix("lambda")
+mata: tau    = st_matrix("tau") 
+mata: st_local("ATT", strofreal(ATT))
 
 qui count if `3'==`mint'                 //total units
 local N=r(N)
@@ -234,9 +241,18 @@ qui count if `treated'==1 & `3'==`mint' //treated units (total)
 local tr=r(N)
 local newtr=`co'-`tr'+1                 //start of treated units
 qui levelsof `3'                        //T
-local T=r(r)
+local T: word count `r(levels)'
 mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
-qui levelsof `tyear', local(tryear) matrow(adoption) //adoption local
+
+qui levelsof `tyear', local(tryear) //adop
+local nadop: word count `r(levels)'
+matrix adoption = J(`nadop',1,.)
+local jj=1
+foreach l of local tryear {
+    matrix adoption[`jj',1]=`l'
+    local ++jj
+}
+
 
 if (length("`if'")+length("`in'")>0) {
     restore
@@ -276,8 +292,7 @@ if "`vce'"=="bootstrap" {
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATTB = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk')
-            mata: ATT_b[`b',] = ATTB.Tau
+            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk')
             local ++b
         }
         restore
@@ -327,8 +342,7 @@ else if "`vce'"=="placebo" {
         mata: indicator=smerge(psam_id, (ori_id, ori_pos))
         mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-        mata: ATTP = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk')
-        mata: ATT_p[`b',] = ATTP.Tau
+        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk')
         local ++b
         restore
     }
@@ -341,14 +355,10 @@ else if "`vce'"=="placebo" {
 * (5) Return output
 *--------------------------------------------------------------------------*
 ereturn clear
-*mata matrix to stata matrix
-mata: st_matrix("lambda", LAMBDA)
-mata: st_matrix("omega", OMEGA)
-mata: st_matrix("omega", OMEGA)
-mata: st_matrix("tau", tau)
+
 matrix tau=(tau,adoption)
 qui levelsof `2'
-local nclust r(r)
+local nclust: word count `r(levels)'
 
 
 ereturn scalar se     =`se' 
@@ -393,7 +403,7 @@ di as text "Refer to Arkhangelsky et al., (2020) for theoretical derivations."
 *--------------------------------------------------------------------------*
 if length("`graph'")!=0 {
     qui levelsof `tyear'
-    local trN=r(r)
+    local trN: word count `r(levels)'
     mata: timevar=LAMBDA[1::`T',(`trN'+1)]
     mata: id=OMEGA[1::`co',(`trN'+1)]
     foreach time of local tryear {
@@ -466,7 +476,7 @@ if length("`graph'")!=0 {
         getmata omega, force
         qui drop if state==.
         gen order=_n
-        mata: st_local("tau", strofreal(ATT.tau[`TAU',]))
+        mata: st_local("tau", strofreal(tau[`TAU',]))
 
         order diff order state
         local xlabs
@@ -524,7 +534,7 @@ if length("`graph'")!=0 {
         local ++TAU
         
         preserve
-		qui keep if `touse'
+        qui keep if `touse'
         qui merge m:1 `2' using `omega_weights_`time'' , nogen		
         qui keep if `tyear'==. | `tyear'==`time'
         tempvar Y_omega tipo
@@ -592,15 +602,6 @@ end
 *------------------------------------------------------------------------------*
 * (8) Mata functions
 *------------------------------------------------------------------------------*
-mata:
-struct results {
-    real matrix Omega
-    real matrix Lambda
-    real matrix tau
-    real scalar Tau
-}
-end
-
 *Main function (synthdid)
 *Below assumes data is a matrix with:
 * (1) y variable
@@ -612,7 +613,7 @@ end
 * (7) indicator of year treated (if treated)
 * (8+) any controls
 mata:
-    struct results scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk) {
+    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk) {
         data  = sort(data, (6,2,4))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
@@ -926,12 +927,12 @@ mata:
 		
         tau_wt = tau_wt/sum(tau_wt')
         ATT = tau_wt*tau
-        struct results scalar r
-        r.Omega = Omega
-        r.Lambda = Lambda
-        r.tau = tau
-        r.Tau = ATT
-        return(r)
+        if (inference==0) {
+            st_matrix("omega" ,Omega)
+            st_matrix("lambda",Lambda)
+            st_matrix("tau"   ,tau)
+        }
+        return(ATT)
     }
 end
   
@@ -1067,4 +1068,3 @@ mata:
         return(Yprojected)
 }
 end
-
