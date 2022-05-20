@@ -90,6 +90,22 @@ if r(max)!=0 {
     dis as error "Any units which are treated the entire panel should not be included in the synthetic DID procedure."
     exit 459
 }
+qui sum `4'
+if (r(min)==0 & r(max)==0)==1 {
+    di as error "All units are controls."
+    exit 459
+}
+tempvar a1 a2
+qui gen `a1'=`3' if `4'==1
+qui bys `2': egen `a2'=min(`a1')
+qui levelsof `a2', local(A2)
+foreach t of local A2 {
+    qui sum `4' if `3'>=`t'
+    if r(min)==r(max) {
+        di as error "All units are treated in some adoption time."
+        exit 459
+    }
+}
 tempvar test
 qui bys `2' (`3'): gen `test'=`4'-`4'[_n-1] 
 qui sum `test'
