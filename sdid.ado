@@ -257,8 +257,15 @@ local co=r(N)
 qui count if `treated'==1 & `3'==`mint' //treated units (total)
 local tr=r(N)
 local newtr=`co'-`tr'+1                 //start of treated units
-qui levelsof `3', matrow(ttime)         //T
+qui levelsof `3', local(ttime)          //T
 local T: word count `r(levels)'
+matrix ttime = J(`T',1,.)
+local jj=1
+foreach l of local ttime {
+    matrix ttime[`jj',1]=`l'
+    local ++jj
+}
+
 mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
 
 qui levelsof `tyear', local(tryear) //adop
