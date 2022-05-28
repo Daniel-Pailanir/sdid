@@ -165,18 +165,14 @@ This option should be used with care.
 {synopt:{cmd:e(clustvar)}}name of cluster variable{p_end}
 
 
-
 {synoptset 20 tabbed}{...}
 {p2col 5 20 24 2: Matrices}{p_end}
 {synopt:{cmd:e(tau)}}tau estimator for each adoption time-period{p_end}
 {synopt:{cmd:e(lambda)}}lambda weights (time-specific weights){p_end}
 {synopt:{cmd:e(omega)}}omega weights (unit-specific weights){p_end}
 {synopt:{cmd:e(adoption)}}adoption times{p_end}
-<<<<<<< HEAD
 {synopt:{cmd:e(series)}}control and treatment series of the graphs{p_end}
-=======
 {synopt:{cmd:e(series)}}control and treatment series of the graph{p_end}
->>>>>>> 612552090831105b53944aa65f7ff9190ae09e5f
 
 {pstd}
 {p_end}
