@@ -106,6 +106,7 @@ foreach t of local A2 {
         exit 459
     }
 }
+
 tempvar test
 qui bys `2' (`3'): gen `test'=`4'-`4'[_n-1] 
 qui sum `test'
@@ -256,7 +257,7 @@ local co=r(N)
 qui count if `treated'==1 & `3'==`mint' //treated units (total)
 local tr=r(N)
 local newtr=`co'-`tr'+1                 //start of treated units
-qui levelsof `3'                        //T
+qui levelsof `3', matrow(ttime)         //T
 local T: word count `r(levels)'
 mkmat `tyear' if `tyear'!=. & `3'==`mint', matrix(tryears) //save adoption values
 
@@ -565,7 +566,12 @@ if length("`graph'")!=0 {
 
         mata: lambda=weight_lambda_`time'
         getmata lambda, force
-
+		
+        mkmat `Y_omega'Control, matrix(Yco`time')
+        mkmat `Y_omega'Treated, matrix(Ytr`time')
+        mat coln Yco`time' = Yco`time' 
+        mat coln Ytr`time' = Ytr`time' 
+		
         #delimit ;
         twoway line `Y_omega'Control `3', yaxis(1) lp(solid)
             || line `Y_omega'Treated `3', yaxis(1) lp(solid)
@@ -577,6 +583,19 @@ if length("`graph'")!=0 {
         if `ex'==1 graph export "`gstub'trends`time'`suffix'", replace
         restore
     }
+	
+    *For save Treated and Control time series
+    mat coln ttime = `3'
+    preserve
+    clear
+    svmat ttime, names(col)
+    foreach time of local tryear {
+        svmat Yco`time', names(col)
+        svmat Ytr`time', names(col)
+    }
+    mkmat _all, matrix(Series)
+    restore
+    ereturn matrix Series Series
 }
 end
 
