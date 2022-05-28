@@ -593,9 +593,9 @@ if length("`graph'")!=0 {
         svmat Yco`time', names(col)
         svmat Ytr`time', names(col)
     }
-    mkmat _all, matrix(Series)
+    mkmat _all, matrix(series)
     restore
-    ereturn matrix Series Series
+    ereturn matrix series series
 }
 end
 
