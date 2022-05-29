@@ -172,7 +172,6 @@ This option should be used with care.
 {synopt:{cmd:e(omega)}}omega weights (unit-specific weights){p_end}
 {synopt:{cmd:e(adoption)}}adoption times{p_end}
 {synopt:{cmd:e(series)}}control and treatment series of the graphs{p_end}
-{synopt:{cmd:e(series)}}control and treatment series of the graph{p_end}
 
 {pstd}
 {p_end}
