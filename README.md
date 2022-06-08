@@ -1,3 +1,5 @@
+![Stata](https://img.shields.io/badge/stata-2013-green) ![GitHub Starts](https://img.shields.io/github/stars/Daniel-Pailanir/sdid?style=social) ![GitHub forks](https://img.shields.io/github/forks/Daniel-Pailanir/sdid?style=social) ![issues](https://img.shields.io/github/issues/Daniel-Pailanir/sdid) ![issues close](https://img.shields.io/github/issues-closed/Daniel-Pailanir/sdid) ![GitHub license](https://img.shields.io/github/license/Daniel-Pailanir/sdid)
+
 # sdid -- Synthetic Difference-in-Differences for Stata
 
 This Stata package implements the synthetic difference-in-differences estimation procedure, along with a range of inference and graphing procedures, following Arkhangelsky et al., (2021).  Arkhangelsky et al. provide a code implementation in R, with accompanying materials here: [synthdid](https://synth-inference.github.io/synthdid/). 
