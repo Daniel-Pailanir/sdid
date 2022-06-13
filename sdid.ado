@@ -466,7 +466,7 @@ if length("`graph'")!=0 {
         }
 
         tempvar Y_lambda
-        qui gen `Y_lambda'=`1'*weight_lambda		
+        qui gen `Y_lambda'=`1'*weight_lambda_`time'		
 
         local i=1
         foreach s of local id2 {
@@ -502,7 +502,7 @@ if length("`graph'")!=0 {
         gen order=_n
         mata: st_local("tau", strofreal(tau[`TAU',]))
 
-        order diff order state
+        order difference order state
         local xlabs
 
         if `stringvar'== 0 {
@@ -543,11 +543,11 @@ if length("`graph'")!=0 {
         if length(`"`msize'"')==0 local ms msize(tiny)
         else local ms `msize'
         
-        lab var diff "Difference"
+        lab var difference "Difference"
         lab var order "Group"
         #delimit ;
-        twoway scatter diff order if omega!=0 [aw=omega], `ms'
-            || scatter diff order if omega==0, m(X) 
+        twoway scatter difference order if omega!=0 [aw=omega], `ms'
+            || scatter difference order if omega==0, m(X) 
             xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
             yline(`tau', lc(red)) 
             `g1_opt' name(g1_`time', replace) legend(off);
@@ -562,11 +562,11 @@ if length("`graph'")!=0 {
         qui merge m:1 `2' using `omega_weights_`time'' , nogen		
         qui keep if `tyear'==. | `tyear'==`time'
         tempvar Y_omega tipo
-        qui drop if weight_omega==0
-        qui gen `Y_omega'=`1' if weight_omega==.
-        qui replace `Y_omega'=`1'*weight_omega if weight_omega!=.
-        qui gen `tipo'="Control" if weight_omega!=.
-        qui replace `tipo'="Treated" if weight_omega==.
+        qui drop if weight_omega_`time'==0
+        qui gen `Y_omega'=`1' if weight_omega_`time'==.
+        qui replace `Y_omega'=`1'*weight_omega_`time' if weight_omega_`time'!=.
+        qui gen `tipo'="Control" if weight_omega_`time'!=.
+        qui replace `tipo'="Treated" if weight_omega_`time'==.
         keep `2' `3' `Y_omega' `tipo'
         qui reshape wide `Y_omega', i(`2' `3') j(`tipo') string
         collapse (sum) `Y_omega'Control (mean) `Y_omega'Treated,  by(`3')
@@ -595,10 +595,10 @@ if length("`graph'")!=0 {
     mat coln ttime = `3'
     preserve
     clear
-    svmat ttime, names(col)
+    qui svmat ttime, names(col)
     foreach time of local tryear {
-        svmat Yco`time', names(col)
-        svmat Ytr`time', names(col)
+        qui svmat Yco`time', names(col)
+        qui svmat Ytr`time', names(col)
     }
     mkmat _all, matrix(series)
     restore
