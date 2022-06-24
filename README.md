@@ -38,11 +38,11 @@ webuse set www.damianclarke.net/stata/
 webuse prop99_example.dta, clear
 
 #delimit ;
-sdid packspercapita state year treated, vce(placebo) reps(100) seed(1213) 
+sdid packspercapita state year treated, vce(placebo) reps(100) seed(123) 
      graph g1_opt(xtitle("") ylabel(-35(5)10) scheme(plotplainblind)) 
      g2_opt(ylabel(0(50)150) xlabel(1970(5)2000) ytitle("Packs per capita") 
-            xtitle("") text(125 1995 "ATT = -15.604" " SE = (9.209)") scheme(plotplainblind))
-    graph_export(sdid_, .png) ;
+            xtitle("") text(125 1995 "ATT = -15.604" " SE = (9.338)") scheme(plotplainblind))
+    graph_export(sdid_, .png);
 #delimit cr
 ```
 
@@ -60,7 +60,7 @@ Synthetic Difference-in-Differences Estimator
 -----------------------------------------------------------------------------
 packsperca~a |     ATT     Std. Err.     t      P>|t|    [95% Conf. Interval]
 -------------+---------------------------------------------------------------
-   treatment | -15.60383    9.20931    -1.69    0.090   -33.65374     2.44608
+   treatment | -15.60383    9.33752    -1.67    0.095   -33.90504     2.69738
 -----------------------------------------------------------------------------
 95% CIs and p-values are based on Large-Sample approximations.
 Refer to Arkhangelsky et al., (2020) for theoretical derivations.
