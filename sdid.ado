@@ -390,7 +390,7 @@ ereturn scalar ATT    =`ATT'
 ereturn scalar reps   =`reps'
 ereturn scalar N_clust=`nclust'
 
-matrix colnames tau = Tau Year
+matrix colnames tau = Tau Time
 ereturn matrix tau      tau
 ereturn matrix lambda   lambda
 ereturn matrix omega    omega
