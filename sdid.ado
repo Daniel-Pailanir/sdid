@@ -395,6 +395,7 @@ ereturn matrix tau      tau
 ereturn matrix lambda   lambda
 ereturn matrix omega    omega
 ereturn matrix adoption adoption
+ereturn matrix beta     beta
 
 ereturn local cmdline  "sdid `0'"
 ereturn local clustvar `clustvar'
@@ -670,12 +671,19 @@ mata:
             N = panelstats(units)[,1]
         }
 		
+		//matrix for beta
+        if (inference==0 & (controls==0)) {
+            Beta = J(1, 1, .)
+        }
+		
         //Adjust for controls in xysnth way
         //save original data for jackknife
         data_ori=data
         if (cols(data)>7 & controls==1) {
-            data[,1] = projected(data)
+            projected(data, Yprojected, Beta)
+            data[,1] = Yprojected
         }
+        
         //Find years which change treatment
         trt = select(uniqrows(data[,7]),uniqrows(data[,7]):!=.)
         //Iterate over years, calculating each estimate
@@ -685,6 +693,10 @@ mata:
             Omega = J(Nco, rows(trt),.)
             Lambda = J(NT, rows(trt),.)
         }
+        if (inference==0 & controls==2) {
+            Beta = J(cols(data)-7, rows(trt),.)
+        }
+
         for(yr=1;yr<=rows(trt);++yr) {
             cond1 = data[,7]:==trt[yr]
             cond2 = data[,7]:==.
@@ -806,8 +818,8 @@ mata:
                 if (inference==0) {
                     Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
                     Omega[.,yr] = lambda_o'
+                    Beta[.,yr] = beta'
                 }
-				
                 Xbeta = J(rows(Y),cols(Y),0)
                 for (c=1;c<=(K-7);++c) {
                     Xbeta = Xbeta + beta[c]*(*CX[c])
@@ -843,6 +855,10 @@ mata:
             Lambda = (Lambda, uniqrows(data[,4]))
             Lambda = (Lambda \ (trt', .))
         }
+        if (inference==0 & controls==2) {
+            Beta = (Beta \ trt')
+        }		
+		
         //jackknife
         if (jk==1) {
             tau_aux    = J(rows(trt),1,.)
@@ -857,7 +873,8 @@ mata:
 					
                 //projected adjustment
                 if (cols(data_aux)>7 & controls==1) {
-                    data_aux[,1] = projected(data_aux)
+                    projected(data_aux, Yprojected, Beta_jk)
+                    data_aux[,1] = Yprojected
                 }	
                 
                 for (yr=1;yr<=rows(trt);++yr) {
@@ -973,6 +990,7 @@ mata:
             st_matrix("omega" ,Omega)
             st_matrix("lambda",Lambda)
             st_matrix("tau"   ,tau)
+            st_matrix("beta"  ,Beta)	
         }
         return(ATT)
     }
@@ -1084,7 +1102,7 @@ end
 
 *projected covariates
 mata:
-    real matrix projected(matrix Y) {
+    void projected(Y, Yprojected, Beta) {
         K = cols(Y)
         cdat = Y[selectindex(Y[,6]:==0),(1,2,4,8..K)]
         cdat = select(cdat, rowmissing(cdat):==0)
@@ -1104,10 +1122,10 @@ mata:
         XX = quadcross(X,1 , X,1)
         Xy = quadcross(X,1 , y,0)
         beta = invsym(XX)*Xy
-        beta = beta[1::NX]
+        Beta = beta[1::NX]
         X = Y[.,8::K]
-        Yprojected = Y[.,1]-X*beta
-        return(Yprojected)
+        Yprojected = Y[.,1]-X*Beta
 }
 end
+
 
