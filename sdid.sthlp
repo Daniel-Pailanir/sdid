@@ -151,7 +151,7 @@ This option should be used with care.
 {synoptset 20 tabbed}{...}
 {p2col 5 20 24 2: Scalars}{p_end}
 {synopt:{cmd:e(ATT)}}ATT {p_end}
-{synopt:{cmd:e(se)}}Standard error {p_end} 
+{synopt:{cmd:e(se)}}Standard error {p_end}
 {synopt:{cmd:e(reps)}}Number of bootstrap/placebo replications {p_end}
 {synopt:{cmd:e(N_clust)}}Number of clusters {p_end}	  
 
@@ -171,6 +171,7 @@ This option should be used with care.
 {synopt:{cmd:e(lambda)}}lambda weights (time-specific weights){p_end}
 {synopt:{cmd:e(omega)}}omega weights (unit-specific weights){p_end}
 {synopt:{cmd:e(adoption)}}adoption times{p_end}
+{synopt:{cmd:e(beta)}}beta vector of covariates{p_end}
 {synopt:{cmd:e(series)}}control and treatment series of the graphs{p_end}
 
 {pstd}
