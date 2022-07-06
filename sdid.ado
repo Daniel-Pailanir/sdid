@@ -398,14 +398,14 @@ ereturn scalar N_clust=`nclust'
 
 matrix colnames tau = Tau Time
 if "`mattitles'"!="" {
-    qui {
         local rn ""
         foreach n of local rnames {
+            local n = subinstr("`n'", "`", " ", .)
+            local n = subinstr("`n'", "'", " ", .)
             local rn `rn' `=strtoname("`n'")'
         }
         local rn `rn' "Adoption Year"
         matrix rownames omega = `rn'
-    }
 }
 ereturn matrix tau      tau
 ereturn matrix lambda   lambda
