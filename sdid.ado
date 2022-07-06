@@ -6,7 +6,8 @@
 /*
 Versions
 1.0.0 Apr 04, 2022: Original version, staggered adoption
-1.1.0 May xx, 2022: Correction for 13.0 Mata, bug fix, adding if/in
+1.1.0 May 13, 2022: Correction for 13.0 Mata, bug fix, adding if/in
+1.2.0 Jul xx, 2022: Exporting additional details
 */
 
 cap program drop sdid
@@ -25,6 +26,7 @@ version 13.0
     unstandardized
     graph_export(string asis)
     msize(passthru)
+    mattitles
     ]
     ;
 #delimit cr  
@@ -35,7 +37,6 @@ version 13.0
 *------------------------------------------------------------------------------*
 tempvar touse
 mark `touse' `if' `in'
-
 **Check if group ID is numeric or string
 local clustvar "`2'"
 
@@ -183,6 +184,12 @@ if (length("`if'")+length("`in'")>0) {
     qui keep if `touse'
 }
 sort `3' `treated' `2'
+if "`mattitles'"!="" {
+    if `stringvar'==1 qui levelsof `groupvar' if `treated'==0
+    else              qui levelsof `2' if `treated'==0
+    local rnames = r(levels)
+}
+    
 gen `n'=_n
 qui sum `3'
 local mint=r(min)
@@ -229,12 +236,9 @@ if "`covariates'"!="" {
         exit 416
     }
 }
-
 *------------------------------------------------------------------------------*
 * (2) Calculate ATT, plus some locals for inference
 *------------------------------------------------------------------------------*
-**IDs (`2') go in twice here because we are not resampling
-
 if "`vce'"=="jackknife" local jk=1
 else local jk=0
 
@@ -243,6 +247,8 @@ if (length("`if'")+length("`in'")>0) {
     qui keep if `touse'
 }
 
+
+**IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
 mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
 mata: OMEGA  = st_matrix("omega")
@@ -341,7 +347,7 @@ else if "`vce'"=="placebo" {
     while `b'<=`B' {
         preserve
         qui keep if `touse'
-		sort `3' `2'
+	sort `3' `2'
 		
         keep `1' `2' `3' `4' `tyear' `conts'
         tempvar r rand id
@@ -391,11 +397,21 @@ ereturn scalar reps   =`reps'
 ereturn scalar N_clust=`nclust'
 
 matrix colnames tau = Tau Time
+if "`mattitles'"!="" {
+    qui {
+        local rn ""
+        foreach n of local rnames {
+            local rn `rn' `=strtoname("`n'")'
+        }
+        local rn `rn' "Adoption Year"
+        matrix rownames omega = `rn'
+    }
+}
 ereturn matrix tau      tau
 ereturn matrix lambda   lambda
 ereturn matrix omega    omega
 ereturn matrix adoption adoption
-ereturn matrix beta     beta
+if "`covariates'"!="" ereturn matrix beta beta
 
 ereturn local cmdline  "sdid `0'"
 ereturn local clustvar `clustvar'
@@ -409,6 +425,7 @@ local t=`ATT'/`se'
 local pval= 2 * (1-normal(abs(`ATT'/`se'))) 
 local LCI=`ATT'+invnormal(0.025)*`se'
 local UCI=`ATT'+invnormal(0.975)*`se'
+
 
 
 di as text ""
@@ -526,8 +543,7 @@ if length("`graph'")!=0 {
                 if r(mean)!= . {
                     local xlabs `xlabs' `oN' "`s'"
                 }
-            }
-            
+            }            
         }
 
         if length(`"`graph_export'"')!=0 {
@@ -671,7 +687,7 @@ mata:
             N = panelstats(units)[,1]
         }
 		
-		//matrix for beta
+        //matrix for beta
         if (inference==0 & (controls==0)) {
             Beta = J(1, 1, .)
         }
