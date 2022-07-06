@@ -404,7 +404,7 @@ if "`mattitles'"!="" {
             local n = subinstr("`n'", "'", " ", .)
             local rn `rn' `=strtoname("`n'")'
         }
-        local rn `rn' "Adoption Year"
+        local rn `rn' "Adoption Time"
         matrix rownames omega = `rn'
 }
 ereturn matrix tau      tau
