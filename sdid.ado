@@ -217,7 +217,8 @@ if "`covariates'"!="" {
     if "`r(ctype)'"=="optimized" local control_opt = 2
     if "`r(ctype)'"=="projected" local control_opt = 1
     local conts = r(controls)
-
+    local contname = r(controls)
+	
     if `control_opt'==2&length(`"`unstandardized'"')==0 {
         local sconts
         foreach var of varlist `conts' {
@@ -411,7 +412,12 @@ ereturn matrix tau      tau
 ereturn matrix lambda   lambda
 ereturn matrix omega    omega
 ereturn matrix adoption adoption
-if "`covariates'"!="" ereturn matrix beta beta
+
+if "`covariates'"!="" {
+    if "`control_opt'"=="1" matrix rownames beta = `contname'
+    if "`control_opt'"=="2" matrix rownames beta = `contname' adoption
+    ereturn matrix beta beta
+}
 
 ereturn local cmdline  "sdid `0'"
 ereturn local clustvar `clustvar'
@@ -788,7 +794,7 @@ mata:
 				
                 maxiter=10000
                 vals = J(1, maxiter, .)
- 		        beta=J(1,(K-7),0)
+                beta=J(1,(K-7),0)
                 gradbeta = J(1,(K-7),0)
                 t=0
                 dd=1
