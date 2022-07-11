@@ -25,7 +25,8 @@ Optional {it:type} can be specified, as either "optimized" (the default) or "pro
 {synopt :{opt graph_export}({it:string}, {it:{help graph export:type}})} option allowing for generated graphs to be saved to the disk.{p_end}
 {synopt :{opt unstandardized}} In the case of "optimized" covariates, by default covariates will be standardized as z-scores,
 unless the unstandardized option is specified.{p_end}
-
+{synopt :{opt mattitles}} Requests that weights returned in matrices are accompanied by the name
+of the groupvar corresponding to each weight.{p_end}
 {pstd}
 {p_end}
 {synoptline}
@@ -137,6 +138,15 @@ Optionally, a stub can be specified, in which case this will be prepended to exp
 {opt unstandardized} if controls are included and the "optimized" method is specified, controls will be standardized as Z-scores prior to finding optimal weights. This avoids problems with optimization when control variables have very
 high dispersion. If unstandardized is specified, controls will simply be entered in their original units.
 This option should be used with care.
+
+{pstd}
+{p_end}
+{phang}
+{opt mattitles} Requests labels to be added to the returned {cmd:e(omega)} weight matrix providing names (in string) for the unit variables which generate the synthetic control group in each case.
+If mattitles is not indicated, the returned weight matrix ({cmd:e(omega)}) will store these
+weights with a final column providing the numerical ID of units, where this numerical ID is either
+taken from the unit variable (if this variable is a numerical format), or arranged in alphabetical
+order based on the unit variable, if this variable is in string format.
 
 {pstd}
 {p_end}
