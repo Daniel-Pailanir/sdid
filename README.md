@@ -21,7 +21,7 @@ net install sdid, from("https://raw.githubusercontent.com/daniel-pailanir/sdid/m
 
 ## Syntax
 ```s
-sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method]) graph g1_opt(string) g2_opt(string) unstandardized graph_export([stub] , type)
+sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method]) graph g1_opt(string) g2_opt(string) unstandardized graph_export([stub] , type) mattitles
 ```
 + vce(): bootstrap, jackknife and placebo standard error.
 + seed(): seed define for pseudo-random numbers.
@@ -31,6 +31,7 @@ sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method
 + g1_opt() and g2_opt(): option to modify the appearance of the aforementioned graphs.  g1 refers to the unit-specific weight graph, while g2 refers to the outcome trend groaphs. Options requested have to follow the syntax of Stata's twoway_options.
 + unstandardized: If controls are included and the "optimized" method is specified, controls will be standardized as Z-scores prior to finding optimal weights.  This avoids problems with optimization when control variables have very high dispersion.  If unstandardized is specified, controls will simply be entered in their original units.  This option should be used with care.
 + graph_export( [stub], type): Generated graphs can be saved to the disk using this option.  Graphs will be saved as weightsYYYY and trendsYYYY for each of the unit-specific weights and outcome trends respectively, where YYYY refers to each treatment adoption period.  Two graphs will be generated for each treatment adoption period.  If this option is specified, type must be specified, which refers to a valid Stata graph type (eg ".eps", ".pdf", and so forth).  Optionally, a stub can be specified, in which case this will be prepended to exported graph names. 
++ mattitles: Requests labels to be added to the returned Omega weight matrix providing names (in string) for the unit variables which generate the synthetic control group in each case.  If mattitles is not indicated, the returned weight matrix (e(omega)) will store these weights with a final column providing the numerical ID of units, where this numerical ID is either taken from the unit variable (if this variable is a numerical format), or arranged in alphabetical order based on the unit variable, if this variable is in string format.
 
 ## Running an example
 ```s
