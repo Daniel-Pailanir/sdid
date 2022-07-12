@@ -219,17 +219,26 @@ if "`covariates'"!="" {
     local conts = r(controls)
     local contname = r(controls)
 	
+    foreach var of varlist `contname' {
+        qui sum `var'
+        if r(sd)==0 {
+		    dis as error "Constant covariates should not be included."
+            exit 416
+        }
+    }
+	
     if `control_opt'==2&length(`"`unstandardized'"')==0 {
         local sconts
         foreach var of varlist `conts' {
             tempvar z`var'
-            egen `z`var''= std(`var') if `touse'
+            qui egen `z`var''= std(`var') if `touse'
             local sconts `sconts' `z`var''
         }
         local conts `sconts'
     }
+	
     tempvar nmiss
-    egen `nmiss' = rowmiss(`conts')
+    qui egen `nmiss' = rowmiss(`conts')
     qui sum `nmiss' if `touse'
     if r(mean)!=0 {
         dis as error "Missing values found in covariates."
@@ -237,6 +246,7 @@ if "`covariates'"!="" {
         exit 416
     }
 }
+
 *------------------------------------------------------------------------------*
 * (2) Calculate ATT, plus some locals for inference
 *------------------------------------------------------------------------------*
@@ -450,6 +460,9 @@ di as text "Refer to Arkhangelsky et al., (2020) for theoretical derivations."
 * (6) Graphing
 *--------------------------------------------------------------------------*
 if length("`graph'")!=0 {
+    if `co'>1000 {
+        dis "Be careful with graph option. You have a lot of control units."
+    }
     qui levelsof `tyear'
     local trN: word count `r(levels)'
     mata: timevar=LAMBDA[1::`T',(`trN'+1)]
