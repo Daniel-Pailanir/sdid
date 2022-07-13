@@ -97,6 +97,12 @@ after regression adjustment.  However, this has been observed to be problematic 
 sensitive to optimization if covariates have high dispersion.  Thus, an alternative type is implmented ("projected"), which consists
 of conducting regression adjustment based on parameters estimated only in untreated groups.
 This type follows the procedure proposed by Kranz, 2021 (xsynth in R), and is observed to be more stable in some implementations (and at times, considerably faster).
+{cmd:sdid} will run simple checks on the covariates indicated and return an error if covariates are constant, to avoid multicolineality.
+However, prior to running {cmd:sdid}, you are encouraged to ensure that covariates are not perfectly
+multicolinear with other covariates and state and year fixed effects, in a simple two-way fixed
+effect regression.  If perfectly multi-colinear covariates are included {cmd:sdid} will execute
+without errors, however where type is "optimized", the procedure may be sensitive to the
+inclusion of redundant covariates.
 
 {pstd}
 {p_end}
@@ -181,7 +187,7 @@ order based on the unit variable, if this variable is in string format.
 {synopt:{cmd:e(lambda)}}lambda weights (time-specific weights){p_end}
 {synopt:{cmd:e(omega)}}omega weights (unit-specific weights){p_end}
 {synopt:{cmd:e(adoption)}}adoption times{p_end}
-{synopt:{cmd:e(beta)}}beta vector of covariates{p_end}
+{synopt:{cmd:e(beta)}}beta vector of corresponding to covariates{p_end}
 {synopt:{cmd:e(series)}}control and treatment series of the graphs{p_end}
 
 {pstd}
