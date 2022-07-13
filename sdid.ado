@@ -1,13 +1,13 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 1.1.0 May 13, 2022
+*! Version 1.2.0 July 12, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
 /*
 Versions
-1.0.0 Apr 04, 2022: Original version, staggered adoption
+1.0.0 Apr 04, 2022: Original version, staggered adoption [SSC]
 1.1.0 May 13, 2022: Correction for 13.0 Mata, bug fix, adding if/in
-1.2.0 Jul xx, 2022: Exporting additional details
+1.2.0 Jul 12, 2022: Exporting additional details         [SSC]
 */
 
 cap program drop sdid
@@ -222,7 +222,8 @@ if "`covariates'"!="" {
     foreach var of varlist `contname' {
         qui sum `var'
         if r(sd)==0 {
-		    dis as error "Constant covariates should not be included."
+            dis as error "Covariates were found to be constant in the estimation sample."
+            dis as error "Please remove constant covariates from the covariate set."
             exit 416
         }
     }
@@ -461,7 +462,8 @@ di as text "Refer to Arkhangelsky et al., (2020) for theoretical derivations."
 *--------------------------------------------------------------------------*
 if length("`graph'")!=0 {
     if `co'>1000 {
-        dis "Be careful with graph option. You have a lot of control units."
+        local vis "and graphed unit weights are unlikely to be easily visualized."
+        dis "Be careful with graph option. You have a lot of control units `vis'"
     }
     qui levelsof `tyear'
     local trN: word count `r(levels)'
