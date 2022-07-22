@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 1.2.0 July 12, 2022
+*! Version 1.3.0 July 22, 2022
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
@@ -8,6 +8,7 @@ Versions
 1.0.0 Apr 04, 2022: Original version, staggered adoption [SSC]
 1.1.0 May 13, 2022: Correction for 13.0 Mata, bug fix, adding if/in
 1.2.0 Jul 12, 2022: Exporting additional details         [SSC]
+1.3.0 Jul 13, 2022: Addition of DiD and SC methods
 */
 
 cap program drop sdid
@@ -27,6 +28,7 @@ version 13.0
     graph_export(string asis)
     msize(passthru)
     mattitles
+    method(string asis)
     ]
     ;
 #delimit cr  
@@ -54,8 +56,8 @@ else {
     tokenize `varlist'
 }
 
-if !inlist("`vce'", "bootstrap", "jackknife", "placebo") {
-    dis as error "vce() must be one of bootstrap, jackknife or placebo."
+if !inlist("`vce'", "bootstrap", "jackknife", "placebo","noinference") {
+    dis as error "vce() must be one of bootstrap, jackknife, placebo or noinference."
     exit 198
 }
 
@@ -259,10 +261,16 @@ if (length("`if'")+length("`in'")>0) {
     qui keep if `touse'
 }
 
+if "`method'"==""     local m=1
+if "`method'"=="sdid" local m=1
+if "`method'"=="did"  local m=2
+if "`method'"=="sc"   local m=3
+
 
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
+*mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
+mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m')
 mata: OMEGA  = st_matrix("omega")
 mata: LAMBDA = st_matrix("lambda")
 mata: tau    = st_matrix("tau") 
@@ -300,6 +308,7 @@ if (length("`if'")+length("`in'")>0) {
     restore
 }
 
+if "`vce'"!="noinference" {
 *--------------------------------------------------------------------------*
 * (3) Standard error: bootstrap
 *--------------------------------------------------------------------------*
@@ -334,7 +343,7 @@ if "`vce'"=="bootstrap" {
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk')
+            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m')
             local ++b
         }
         restore
@@ -343,7 +352,6 @@ if "`vce'"=="bootstrap" {
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_b)))
     mata: st_local("se", strofreal(se)) 
 }
-    	
 *--------------------------------------------------------------------------*
 * (4) Standard error: placebo
 *--------------------------------------------------------------------------*
@@ -384,7 +392,7 @@ else if "`vce'"=="placebo" {
         mata: indicator=smerge(psam_id, (ori_id, ori_pos))
         mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk')
+        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m')
         local ++b
         restore
     }
@@ -392,7 +400,7 @@ else if "`vce'"=="placebo" {
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_p)))
     mata: st_local("se", strofreal(se))
 }
-
+}
 *--------------------------------------------------------------------------*
 * (5) Return output
 *--------------------------------------------------------------------------*
@@ -402,7 +410,7 @@ matrix tau=(tau,adoption)
 qui levelsof `2'
 local nclust: word count `r(levels)'
 
-
+if "`vce'"=="noinference" local se=.
 ereturn scalar se     =`se' 
 ereturn scalar ATT    =`ATT'
 ereturn scalar reps   =`reps'
@@ -444,10 +452,24 @@ local LCI=`ATT'+invnormal(0.025)*`se'
 local UCI=`ATT'+invnormal(0.975)*`se'
 
 
+if ("`method'"=="sdid" | "`method'"=="" ) {
+    local tabletitle "Synthetic Difference-in-Differences Estimator"
+    local tablefootnote "Refer to Arkhangelsky et al., (2020) for theoretical derivations."
+}
+if ("`method'"=="did") {
+    local tabletitle "Difference-in-Differences Estimator"
+    local tablefootnote
+}
+if ("`method'"=="sc") {
+    local tabletitle "Synthetic Control"
+    local tablefootnote
+}
+
+
 
 di as text ""
 di as text ""
-di as text "Synthetic Difference-in-Differences Estimator" 
+di as text "`tabletitle'" 
 di as text ""
 di as text "{hline 13}{c TT}{hline 63}"
 di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t      P>|t|    [95% Conf. Interval]" 
@@ -455,7 +477,7 @@ di as text "{hline 13}{c +}{hline 63}"
 di as text "   treatment" " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' %9.3f `pval' "   " %9.5f `LCI' "   " %9.5f `UCI'
 di as text "{hline 13}{c BT}{hline 63}"
 di as text "95% CIs and p-values are based on Large-Sample approximations."
-di as text "Refer to Arkhangelsky et al., (2020) for theoretical derivations." 
+di as text "`tablefootnote'" 
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
@@ -617,10 +639,13 @@ if length("`graph'")!=0 {
         mat coln Yco`time' = Yco`time' 
         mat coln Ytr`time' = Ytr`time' 
 		
+        local timelambda "|| area lambda `3', yaxis(2) lp(solid) ylabel(0(1)3, axis(2)) yscale(off axis(2))"
+        if "`method'"=="sc" local timelambda 
+		
         #delimit ;
-        twoway line `Y_omega'Control `3', yaxis(1) lp(solid)
+        twoway line `Y_omega'Control `3', yaxis(1) lp(dash)
             || line `Y_omega'Treated `3', yaxis(1) lp(solid)
-    	    || area lambda `3', yaxis(2) lp(solid) ylabel(0(1)5, axis(2)) yscale(off axis(2))
+    	    `timelambda'
             || , 
             xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
            `g2_opt' name(g2_`time', replace);
@@ -693,7 +718,7 @@ end
 * (7) indicator of year treated (if treated)
 * (8+) any controls
 mata:
-    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk) {
+    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk, mt) {
         data  = sort(data, (6,2,4))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
@@ -726,6 +751,7 @@ mata:
         //Iterate over years, calculating each estimate
         tau    = J(rows(trt),1,.)
         tau_wt = J(1,rows(trt),.)
+		
         if (inference==0) {
             Omega = J(Nco, rows(trt),.)
             Lambda = J(NT, rows(trt),.)
@@ -762,7 +788,14 @@ mata:
             prediff = select(diff,dropc:==0)
             sig_t = sqrt(variance(prediff))
             EtaLambda = 1e-6
-            EtaOmega = (yNtr*yTpost)^(1/4)
+            
+			if (mt!=3) {
+                EtaOmega = (yNtr*yTpost)^(1/4)
+            }
+			if (mt==3) {
+                EtaOmega = 1e-6
+            }
+			
             yZetaOmega  = EtaOmega*sig_t
             yZetaLambda = EtaLambda*sig_t
             //Generate Y matrices
@@ -778,17 +811,30 @@ mata:
             //Calculate input matrices (pre-treatment and averages)
             A_l = Y0[,1..Npre]:-mean(Y0[,1..Npre])
             b_l = promt:-mean(promt)
-            A_o = Y0[,1..Npre]':-mean(Y0[,1..Npre]')
-            b_o = mean(Y1[.,1..Npre])':-mean(mean(Y1[.,1..Npre])')
+			
+            if (mt!=3) {
+                A_o = Y0[,1..Npre]':-mean(Y0[,1..Npre]')
+                b_o = mean(Y1[.,1..Npre])':-mean(mean(Y1[.,1..Npre])')
+            }
+            if (mt==3) {
+                A_o = Y0[,1..Npre]'
+                b_o = mean(Y1[.,1..Npre])'
+            }			
 	
             //Calculate Tau for t
-            if (inference==1) {
+            if (inference==1 & mt!=2) {
                 lambda_l = select(LAMBDA'[.,1::Npre],LAMBDA'[,rows(LAMBDA)]:==trt[yr])
                 l_o = select(OMEGA'[.,1::yNco],OMEGA'[,rows(OMEGA)]:==trt[yr])
                 lambda_o = sum_norm(l_o) //update so prior weights sum to 1
             }
+			
             else {
-                lambda_l = J(1,cols(A_l),1/cols(A_l))
+                if (mt==3) {
+                    lambda_l = J(1,cols(A_l),0)
+                }
+                if (mt!=3) {
+                    lambda_l = J(1,cols(A_l),1/cols(A_l))
+                }
                 lambda_o = J(1,cols(A_o),1/cols(A_o))
             }
             mindec = (1e-5*sig_t)^2
@@ -817,11 +863,15 @@ mata:
                 eta_o = Npre*yZetaOmega^2
                 eta_l = yNco*yZetaLambda^2
 			
-                //update wights
-                lambda_l = fw(A_l,b_l,lambda_l,eta_l)
+                //update wights: sdid and sc
+                if (mt!=2) {
+                    if (mt==1) {
+                        lambda_l = fw(A_l,b_l,lambda_l,eta_l)
+                    }
+                    lambda_o = fw(A_o,b_o,lambda_o,eta_o)
+                }
                 err_l    = (A_l, b_l)*(lambda_l' \ -1)
-                lambda_o = fw(A_o,b_o,lambda_o,eta_o)
-                err_o    = (A_o, b_o)*(lambda_o' \ -1)	
+                err_o    = (A_o, b_o)*(lambda_o' \ -1)
 				
                 while (t<maxiter & (t<2 | dd>mindec)) {
                     t++		
@@ -840,14 +890,24 @@ mata:
 					
                     Ybeta_A_l = Ybeta[1::yNco,1::Npre]:-mean(Ybeta[1::yNco,1::Npre])
                     Ybeta_b_l = Ybeta[1::yNco,Npre+1]:-mean(Ybeta[1::yNco,Npre+1])
-                    Ybeta_A_o = Ybeta[1::yNco,1::Npre]':-mean(Ybeta[1::yNco,1::Npre]')
-                    Ybeta_b_o = (Ybeta[yNco+1,1::Npre])':-mean((Ybeta[yNco+1,1::Npre])')
+                    if (mt!=3) {
+                       Ybeta_A_o = Ybeta[1::yNco,1::Npre]':-mean(Ybeta[1::yNco,1::Npre]')
+                       Ybeta_b_o = (Ybeta[yNco+1,1::Npre])':-mean((Ybeta[yNco+1,1::Npre])')
+                    }
+                    if (mt==3) {
+                       Ybeta_A_o = Ybeta[1::yNco,1::Npre]'
+                       Ybeta_b_o = (Ybeta[yNco+1,1::Npre])'
+                    }
 				
-                    lambda_l = fw(Ybeta_A_l,Ybeta_b_l,lambda_l,eta_l)
+                    if (mt!=2) {
+                        if (mt==1) {
+                            lambda_l = fw(Ybeta_A_l,Ybeta_b_l,lambda_l,eta_l)
+                        }
+                        lambda_o = fw(Ybeta_A_o,Ybeta_b_o,lambda_o,eta_o)
+                    }
                     err_l    = (Ybeta_A_l,Ybeta_b_l)*(lambda_l' \ -1)
-                    lambda_o = fw(Ybeta_A_o,Ybeta_b_o,lambda_o,eta_o)
                     err_o    = (Ybeta_A_o,Ybeta_b_o)*(lambda_o' \ -1)
-					
+
                     vals[1,t]=yZetaOmega^2*(lambda_o*lambda_o')+yZetaLambda^2*(lambda_l*lambda_l')+
                               (err_o'*err_o)/Npre+(err_l'*err_l)/yNco
                     if (t>1) dd = vals[1,t-1] - vals[1,t]
@@ -867,16 +927,19 @@ mata:
             }
 			
             if (controls==0 | controls==1) {
-                //Find optimal weight matrices
-                eta_o = Npre*yZetaOmega^2
-                eta_l = yNco*yZetaLambda^2
-                lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
-                lambda_l = sspar(lambda_l)
-                lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
-                
-                lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
-                lambda_o = sspar(lambda_o)
-                lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
+                if (mt!=2) {
+                    //Find optimal weight matrices
+                    eta_o = Npre*yZetaOmega^2
+                    eta_l = yNco*yZetaLambda^2
+                    if (mt==1) {
+                        lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
+                        lambda_l = sspar(lambda_l)
+                        lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
+                    }
+                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
+                    lambda_o = sspar(lambda_o)
+                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
+                }
                 if (inference==0) {
                     Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
                     Omega[.,yr] = lambda_o'
@@ -951,8 +1014,15 @@ mata:
                         promt_aux = mean(Y0_aux[,(Npre+1)::yNT]')'
                         A_l_aux = Y0_aux[,1..Npre]:-mean(Y0_aux[,1..Npre])
                         b_l_aux = promt_aux:-mean(promt_aux)
-                        A_o_aux = Y0_aux[,1..Npre]':-mean(Y0_aux[,1..Npre]')
-                        b_o_aux = mean(Y1_aux[.,1..Npre])':-mean(mean(Y1_aux[.,1..Npre])')
+						
+                        if (mt!=3) {
+                           A_o_aux = Y0_aux[,1..Npre]':-mean(Y0_aux[,1..Npre]')
+                           b_o_aux = mean(Y1_aux[.,1..Npre])':-mean(mean(Y1_aux[.,1..Npre])')
+                        }
+                        if (mt==3) {
+                           A_o_aux = Y0_aux[,1..Npre]'
+                           b_o_aux = mean(Y1_aux[.,1..Npre])'
+                        }
 					
                         K = cols(data_aux)
                         A = J((K-7),1,NULL)
@@ -1023,6 +1093,7 @@ mata:
 		
         tau_wt = tau_wt/sum(tau_wt')
         ATT = tau_wt*tau
+		
         if (inference==0) {
             st_matrix("omega" ,Omega)
             st_matrix("lambda",Lambda)
