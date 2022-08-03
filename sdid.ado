@@ -178,13 +178,14 @@ if (length("`if'")+length("`in'")>0) {
 *------------------------------------------------------------------------------*
 tempvar treated ty tyear n
 qui gen `ty' = `3' if `4'==1 
-qui bys `2': egen `treated' = max(`4') 
-qui by  `2': egen `tyear'   = min(`ty') 
+qui bys `2': egen `treated' = max(`4') if `touse'
+qui by  `2': egen `tyear'   = min(`ty') if `touse'
 
 if (length("`if'")+length("`in'")>0) {
     preserve
     qui keep if `touse'
 }
+
 sort `3' `treated' `2'
 if "`mattitles'"!="" {
     if `stringvar'==1 qui levelsof `groupvar' if `treated'==0
@@ -269,8 +270,8 @@ if "`method'"=="sc"   local m=3
 
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-*mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk')
 mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m')
+
 mata: OMEGA  = st_matrix("omega")
 mata: LAMBDA = st_matrix("lambda")
 mata: tau    = st_matrix("tau") 
@@ -367,7 +368,7 @@ else if "`vce'"=="placebo" {
     while `b'<=`B' {
         preserve
         qui keep if `touse'
-	sort `3' `2'
+	    sort `3' `2'
 		
         keep `1' `2' `3' `4' `tyear' `conts'
         tempvar r rand id
@@ -748,6 +749,7 @@ mata:
         
         //Find years which change treatment
         trt = select(uniqrows(data[,7]),uniqrows(data[,7]):!=.)
+		
         //Iterate over years, calculating each estimate
         tau    = J(rows(trt),1,.)
         tau_wt = J(1,rows(trt),.)
