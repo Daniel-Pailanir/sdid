@@ -475,10 +475,22 @@ di as text ""
 di as text "{hline 13}{c TT}{hline 63}"
 di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t      P>|t|    [95% Conf. Interval]" 
 di as text "{hline 13}{c +}{hline 63}"
-di as text "   treatment" " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' %9.3f `pval' "   " %9.5f `LCI' "   " %9.5f `UCI'
+di as text %12s abbrev("`4'",12) " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' %9.3f `pval' "   " %9.5f `LCI' "   " %9.5f `UCI'
 di as text "{hline 13}{c BT}{hline 63}"
 di as text "95% CIs and p-values are based on Large-Sample approximations."
 di as text "`tablefootnote'" 
+
+
+
+*for esttab and eststo
+matrix b=`ATT'
+matrix V=`se'^2
+matrix colnames b=`4'
+matrix rownames b=`1'
+matrix colnames V=`4'
+matrix rownames V=`4'
+
+ereturn post b V
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
