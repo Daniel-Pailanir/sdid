@@ -492,7 +492,7 @@ matrix rownames b=`1'
 matrix colnames V=`4'
 matrix rownames V=`4'
 
-ereturn post b V, obs(`Ntotal')
+ereturn post b V, depname(`1') obs(`Ntotal')
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
