@@ -407,8 +407,20 @@ else if "`vce'"=="placebo" {
 *--------------------------------------------------------------------------*
 ereturn clear
 
+*for esttab and eststo
+matrix b=`ATT'
+matrix V=`se'^2
+matrix colnames b=`4'
+matrix rownames b=`1'
+matrix colnames V=`4'
+matrix rownames V=`4'
+
+qui count if `touse'
+local N = r(N)
+ereturn post b V
+
 matrix tau=(tau,adoption)
-qui levelsof `2'
+qui levelsof `2' if `touse'
 local nclust: word count `r(levels)'
 
 if "`vce'"=="noinference" local se=.
@@ -416,6 +428,7 @@ ereturn scalar se     =`se'
 ereturn scalar ATT    =`ATT'
 ereturn scalar reps   =`reps'
 ereturn scalar N_clust=`nclust'
+ereturn scalar N      =`N'
 
 matrix colnames tau = Tau Time
 if "`mattitles'"!="" {
@@ -482,15 +495,6 @@ di as text "`tablefootnote'"
 
 
 
-*for esttab and eststo
-matrix b=`ATT'
-matrix V=`se'^2
-matrix colnames b=`4'
-matrix rownames b=`1'
-matrix colnames V=`4'
-matrix rownames V=`4'
-
-ereturn post b V
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
