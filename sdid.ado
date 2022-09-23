@@ -409,8 +409,18 @@ else if "`vce'"=="placebo" {
 *--------------------------------------------------------------------------*
 ereturn clear
 
+*for esttab and eststo
+matrix b=`ATT'
+matrix V=`se'^2
+matrix colnames b=`4'
+matrix rownames b=`1'
+matrix colnames V=`4'
+matrix rownames V=`4'
+
+ereturn post b V, depname(`1') obs(`Ntotal')
+
 matrix tau=(tau,adoption)
-qui levelsof `2'
+qui levelsof `2' if `touse'
 local nclust: word count `r(levels)'
 
 if "`vce'"=="noinference" local se=.
@@ -481,18 +491,6 @@ di as text %12s abbrev("`4'",12) " {c |} " as result %9.5f `ATT' "  " %9.5f `se'
 di as text "{hline 13}{c BT}{hline 63}"
 di as text "95% CIs and p-values are based on Large-Sample approximations."
 di as text "`tablefootnote'" 
-
-
-
-*for esttab and eststo
-matrix b=`ATT'
-matrix V=`se'^2
-matrix colnames b=`4'
-matrix rownames b=`1'
-matrix colnames V=`4'
-matrix rownames V=`4'
-
-ereturn post b V, depname(`1') obs(`Ntotal')
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
