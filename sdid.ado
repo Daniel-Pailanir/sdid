@@ -286,6 +286,8 @@ local tr=r(N)
 local newtr=`co'-`tr'+1                 //start of treated units
 qui levelsof `3', local(ttime)          //T
 local T: word count `r(levels)'
+local Ntotal=`N'*`T'                    //total observations
+
 matrix ttime = J(`T',1,.)
 local jj=1
 foreach l of local ttime {
@@ -490,7 +492,7 @@ matrix rownames b=`1'
 matrix colnames V=`4'
 matrix rownames V=`4'
 
-ereturn post b V
+ereturn post b V, obs(`Ntotal')
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
