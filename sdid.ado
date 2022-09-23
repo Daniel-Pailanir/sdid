@@ -286,6 +286,8 @@ local tr=r(N)
 local newtr=`co'-`tr'+1                 //start of treated units
 qui levelsof `3', local(ttime)          //T
 local T: word count `r(levels)'
+local Ntotal=`N'*`T'                    //total observations
+
 matrix ttime = J(`T',1,.)
 local jj=1
 foreach l of local ttime {
@@ -492,8 +494,6 @@ di as text %12s abbrev("`4'",12) " {c |} " as result %9.5f `ATT' "  " %9.5f `se'
 di as text "{hline 13}{c BT}{hline 63}"
 di as text "95% CIs and p-values are based on Large-Sample approximations."
 di as text "`tablefootnote'" 
-
-
 
 
 *--------------------------------------------------------------------------*
