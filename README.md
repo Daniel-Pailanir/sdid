@@ -76,5 +76,37 @@ Refer to Arkhangelsky et al., (2020) for theoretical derivations.
 <img src="https://github.com/Daniel-Pailanir/sdid/blob/main/graphs/sdid_trends1989.png" width="600" height="400">
 <img src="https://github.com/Daniel-Pailanir/sdid/blob/main/graphs/sdid_weights1989.png" width="600" height="400">
 
+To export results, you can use ```eststo``` and ```esttab```:
+
+```s
+*create a uniform variable to use as a control
+gen r=runiform()
+
+*run sdid
+eststo sdid_1: sdid packspercapita state year treated, vce(placebo) seed(2022)
+eststo sdid_2: sdid packspercapita state year treated, vce(placebo) seed(2022) covariates(r, projected)
+
+*create a table
+esttab sdid_1 sdid_2, starlevel ("*" 0.10 "**" 0.05 "***" 0.01) b(%-9.3f) se(%-9.3f)
+```
+
+The code returns the following results
+
+```s
+--------------------------------------------
+                      (1)             (2)   
+             packsperca~a    packsperca~a   
+--------------------------------------------
+treated           -15.604*        -15.750*  
+                  (7.981)         (8.039)   
+--------------------------------------------
+N                    1209            1209   
+--------------------------------------------
+Standard errors in parentheses
+* p<0.10, ** p<0.05, *** p<0.01
+```
+
+
+
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
