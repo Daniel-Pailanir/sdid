@@ -410,14 +410,15 @@ else if "`vce'"=="placebo" {
 ereturn clear
 
 *for esttab and eststo
+if "`vce'"!="noinference" {
 matrix b=`ATT'
 matrix V=`se'^2
 matrix colnames b=`4'
 matrix rownames b=`1'
 matrix colnames V=`4'
 matrix rownames V=`4'
-
 ereturn post b V, depname(`1') obs(`Ntotal')
+}
 
 matrix tau=(tau,adoption)
 qui levelsof `2' if `touse'
