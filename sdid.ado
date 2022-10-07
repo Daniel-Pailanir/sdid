@@ -22,6 +22,7 @@ version 13.0
     reps(integer 50)
     covariates(string asis)
     graph
+	g1on
     g1_opt(string asis)
     g2_opt(string asis)
     unstandardized
@@ -524,85 +525,86 @@ if length("`graph'")!=0 {
 
     local TAU=1
     foreach time of local tryear {
-        preserve
-        qui keep if (`tyear'==. | `tyear'==`time') & `touse'
-        qui levelsof `2' if `tyear'==`time', local(tr_unit)
-        qui levelsof `2', local(id2)
-        qui count if `tyear'==`time' & `3'==`time'
-        local Ntr=r(N)
-        qui merge m:1 `3' using `lambda_weights_`time'', nogen
+        if "`g1on'"=="g1on" {
+            preserve
+            qui keep if (`tyear'==. | `tyear'==`time') & `touse'
+            qui levelsof `2' if `tyear'==`time', local(tr_unit)
+            qui levelsof `2', local(id2)
+            qui count if `tyear'==`time' & `3'==`time'
+            local Ntr=r(N)
+            qui merge m:1 `3' using `lambda_weights_`time'', nogen
 
-        mata: Z=J(`N',5,.)
-        local i=1
-        foreach s of local id2 {
-            qui sum `1' if `3'>=`time' & `2'==`s'
-            mata: Z[`i',1]=`r(mean)'
-            local ++i
-        }
+            mata: Z=J(`N',5,.)
+            local i=1
+            foreach s of local id2 {
+                qui sum `1' if `3'>=`time' & `2'==`s'
+                mata: Z[`i',1]=`r(mean)'
+                local ++i
+            }
 
-        tempvar Y_lambda
-        qui gen `Y_lambda'=`1'*weight_lambda_`time'		
+            tempvar Y_lambda
+            qui gen `Y_lambda'=`1'*weight_lambda_`time'		
 
-        local i=1
-        foreach s of local id2 {
-            qui sum `Y_lambda' if `3'<`time' & `2'==`s'
-            mata: Z[`i',2]=`r(mean)' * `r(N)'
-            mata: Z[`i',4]=`s'
-            local ++i
-        }
+            local i=1
+            foreach s of local id2 {
+                qui sum `Y_lambda' if `3'<`time' & `2'==`s'
+                mata: Z[`i',2]=`r(mean)' * `r(N)'
+                mata: Z[`i',4]=`s'
+                local ++i
+            }
 
-        mata: Z[,3]=Z[,1]-Z[,2]
-        mata: delta_tr=J(1,`Ntr',.)
-        local i=1
-        foreach s of local tr_unit {
-            mata: delta_tr[1,`i']=select(Z[,3],Z[,4]:==`s')
-            local ++i
-        }	
+            mata: Z[,3]=Z[,1]-Z[,2]
+            mata: delta_tr=J(1,`Ntr',.)
+            local i=1
+            foreach s of local tr_unit {
+                mata: delta_tr[1,`i']=select(Z[,3],Z[,4]:==`s')
+                local ++i
+            }	
 
-        mata: Z[,5]=J(`N',1,sum(delta_tr)/`Ntr')-Z[,3]
-        clear
-
-        mata: difference=Z[,5]
-        mata: state=Z[,4]
-        mata: omega=weight_omega_`time'
-        getmata difference state, force
+            mata: Z[,5]=J(`N',1,sum(delta_tr)/`Ntr')-Z[,3]
+            clear
+            mata: difference=Z[,5]
+            mata: state=Z[,4]
+            mata: omega=weight_omega_`time'
+            getmata difference state, force
        
-        local tr_u `tr_u' `tr_unit' 
-        foreach s of local tr_u {
-            qui drop if state==`s'
-        }
+            local tr_u `tr_u' `tr_unit' 
+            foreach s of local tr_u {
+                qui drop if state==`s'
+            }
 
-        getmata omega, force
-        qui drop if state==.
-        gen order=_n
-        mata: st_local("tau", strofreal(tau[`TAU',]))
+            getmata omega, force
+            qui drop if state==.
+            gen order=_n
+            mata: st_local("tau", strofreal(tau[`TAU',]))
 
-        order difference order state
-        local xlabs
+            order difference order state
+            local xlabs
 
-        if `stringvar'== 0 {
-            qui levelsof state, local(sgroup)
-            foreach s of local sgroup {
-                qui sum order if state == `s'
-                local oN = r(mean)
-                if r(mean)!= . {
-                    local xlabs `xlabs' `oN' "`s'"
+            if `stringvar'== 0 {
+                qui levelsof state, local(sgroup)
+                foreach s of local sgroup {
+                    qui sum order if state == `s'
+                    local oN = r(mean)
+                    if r(mean)!= . {
+                        local xlabs `xlabs' `oN' "`s'"
+                    }
                 }
             }
+            if `stringvar'==1 {
+                qui merge 1:m state using `stateString'
+                qui keep if _merge==3
+                qui levelsof stateName, local(sgroup)
+                foreach s of local sgroup {
+                    qui sum order if stateName == `"`s'"'
+                    local oN = r(mean)
+                    if r(mean)!= . {
+                        local xlabs `xlabs' `oN' "`s'"
+                    }
+                }            
+            }
         }
-        if `stringvar'==1 {
-            qui merge 1:m state using `stateString'
-            qui keep if _merge==3
-            qui levelsof stateName, local(sgroup)
-            foreach s of local sgroup {
-                qui sum order if stateName == `"`s'"'
-                local oN = r(mean)
-                if r(mean)!= . {
-                    local xlabs `xlabs' `oN' "`s'"
-                }
-            }            
-        }
-
+		
         if length(`"`graph_export'"')!=0 {
             _graph_Name `graph_export'
             local gstub = r(gstub)
@@ -614,21 +616,22 @@ if length("`graph'")!=0 {
         }
         else local ex=0
 
-        if length(`"`msize'"')==0 local ms msize(tiny)
-        else local ms `msize'
-        
-        lab var difference "Difference"
-        lab var order "Group"
-        #delimit ;
-        twoway scatter difference order if omega!=0 [aw=omega], `ms'
-            || scatter difference order if omega==0, m(X) 
-            xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
-            yline(`tau', lc(red)) 
-            `g1_opt' name(g1_`time', replace) legend(off);
-        #delimit cr
-        if `ex'==1 graph export "`gstub'weights`time'`suffix'", replace
-        
-        restore
+        if "`g1on'"=="g1on" {
+            if length(`"`msize'"')==0 local ms msize(tiny)
+            else local ms `msize'
+            lab var difference "Difference"
+            lab var order "Group"
+            #delimit ;
+            twoway scatter difference order if omega!=0 [aw=omega], `ms'
+                || scatter difference order if omega==0, m(X) 
+                xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
+                yline(`tau', lc(red)) 
+                `g1_opt' name(g1_`time', replace) legend(off);
+            #delimit cr
+            if `ex'==1 graph export "`gstub'weights`time'`suffix'", replace
+            restore
+        }
+		
         local ++TAU
         
         preserve
@@ -652,6 +655,9 @@ if length("`graph'")!=0 {
         mkmat `Y_omega'Treated, matrix(Ytr`time')
         mat coln Yco`time' = Yco`time' 
         mat coln Ytr`time' = Ytr`time' 
+		
+		matrix diff`time' = Ytr`time'-Yco`time'
+		mat coln diff`time' = Diff`time'
 		
         local timelambda "|| area lambda `3', yaxis(2) lp(solid) ylabel(0(1)3, axis(2)) yscale(off axis(2))"
         if "`method'"=="sc" local timelambda 
@@ -679,7 +685,18 @@ if length("`graph'")!=0 {
     }
     mkmat _all, matrix(series)
     restore
-    ereturn matrix series series
+	
+    preserve
+    clear
+    qui svmat ttime, names(col)
+    foreach time of local tryear {
+        qui svmat diff`time', names(col)
+    }
+    mkmat _all, matrix(difference)
+    restore
+	
+	ereturn matrix series series
+    ereturn matrix difference difference
 }
 end
 
