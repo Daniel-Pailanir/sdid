@@ -19,10 +19,13 @@
 Optional {it:type} can be specified, as either "optimized" (the default) or "projected", which is preferable in certain circumstances. {p_end}
 {synopt :{opt seed}({it:#})} set random-number seed to #.{p_end}
 {synopt :{opt reps}({it:#})} repetitions for bootstrap and placebo inference.{p_end}
+{synopt :{opt method(type)}}{it: type} estimation method. It can be specified as "sdid" (default), "did" or "sc".{p_end}
 {synopt :{opt graph}} if this option is specified, graphs will be displayed in the style of figure 1 from {help sdid##SDID2021:Arkhangelsky et al. (2021)}{p_end}
+{synopt :{opt g1on}} his option activates the unit-specific weight graph.{p_end}
 {synopt :{opt g1_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the unit-specific weight graph.{p_end}
 {synopt :{opt g2_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the outcome trend graphs.{p_end}
 {synopt :{opt graph_export}({it:string}, {it:{help graph export:type}})} option allowing for generated graphs to be saved to the disk.{p_end}
+{synopt :{opt msize(markersizestyle)}}{it: markersizestyle} allows you to modify the size of the marker for graph 1.{p_end}
 {synopt :{opt unstandardized}} In the case of "optimized" covariates, by default covariates will be standardized as z-scores,
 unless the unstandardized option is specified.{p_end}
 {synopt :{opt mattitles}} Requests that weights returned in matrices are accompanied by the name
@@ -117,7 +120,17 @@ inclusion of redundant covariates.
 {pstd}
 {p_end}
 {phang}
+{opt method}({it:type}) this option allows you to change the estimation method. sdid refers to synthetic difference-in-differences, sc refers to synthetic control, and did refers to difference-in-differences. By default, sdid is enabled.
+
+{pstd}
+{p_end}
+{phang}
 {opt graph} if this option is specified, graphs will be displayed showing unit and time weights as well as outcome trends as per figure 1 from {help sdid##SDID2021:Arkhangelsky et al. (2021)}.
+
+{pstd}
+{p_end}
+{phang}
+{opt g1on} this option activates the unit-specific weight graph. By default g1 is off.
 
 {pstd}
 {p_end}
@@ -137,6 +150,11 @@ These options adjust the underlying line plot, so should be consistent with twow
 {opt graph_export}({it:string}, {it:{help graph export:type}}) Graphs will be saved as weightsYYYY and trendsYYYY for each of the unit-specific weights and outcome trends respectively, where YYYY refers to each treatment adoption period.
 Two graphs will be generated for each treatment adoption period. If this option is specified, type must be specified, which refers to a valid Stata graph {it:{help graph export:type}} (eg ".eps", ".pdf", and so forth).
 Optionally, a stub can be specified, in which case this will be prepended to exported graph names.
+
+{pstd}
+{p_end}
+{phang}
+{opt msize}({it:{help markersizestyle:size of marker}}) allows you to modify the size of the marker for graph 1.
 
 {pstd}
 {p_end}
@@ -169,7 +187,7 @@ order based on the unit variable, if this variable is in string format.
 {synopt:{cmd:e(ATT)}}ATT {p_end}
 {synopt:{cmd:e(se)}}Standard error {p_end}
 {synopt:{cmd:e(reps)}}Number of bootstrap/placebo replications {p_end}
-{synopt:{cmd:e(N_clust)}}Number of clusters {p_end}	  
+{synopt:{cmd:e(N_clust)}}Number of clusters {p_end}
 
 
 {synoptset 20 tabbed}{...}
@@ -189,6 +207,7 @@ order based on the unit variable, if this variable is in string format.
 {synopt:{cmd:e(adoption)}}adoption times{p_end}
 {synopt:{cmd:e(beta)}}beta vector of corresponding to covariates{p_end}
 {synopt:{cmd:e(series)}}control and treatment series of the graphs{p_end}
+{synopt:{cmd:e(difference)}}difference between treatment and control series (only returned when the graph option is indicated){p_end}
 
 {pstd}
 {p_end}

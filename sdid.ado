@@ -22,7 +22,7 @@ version 13.0
     reps(integer 50)
     covariates(string asis)
     graph
-	g1on
+    g1on
     g1_opt(string asis)
     g2_opt(string asis)
     unstandardized
