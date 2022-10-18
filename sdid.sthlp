@@ -19,9 +19,9 @@
 Optional {it:type} can be specified, as either "optimized" (the default) or "projected", which is preferable in certain circumstances. {p_end}
 {synopt :{opt seed}({it:#})} set random-number seed to #.{p_end}
 {synopt :{opt reps}({it:#})} repetitions for bootstrap and placebo inference.{p_end}
-{synopt :{opt method(type)}}{it: type} estimation method. It can be specified as "sdid" (default), "did" or "sc".{p_end}
+{synopt :{opt method(type)}} Allows for an estimation method to be requested.  {it: type} can be "sdid" (which is estimated by default), "did" (for standard difference-in-differencs) or "sc" (for standard synthetic control).{p_end}
 {synopt :{opt graph}} if this option is specified, graphs will be displayed in the style of figure 1 from {help sdid##SDID2021:Arkhangelsky et al. (2021)}{p_end}
-{synopt :{opt g1on}} his option activates the unit-specific weight graph.{p_end}
+{synopt :{opt g1on}} If graphing is requested, this option activates the unit-specific weight graph.{p_end}
 {synopt :{opt g1_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the unit-specific weight graph.{p_end}
 {synopt :{opt g2_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the outcome trend graphs.{p_end}
 {synopt :{opt graph_export}({it:string}, {it:{help graph export:type}})} option allowing for generated graphs to be saved to the disk.{p_end}
@@ -120,7 +120,9 @@ inclusion of redundant covariates.
 {pstd}
 {p_end}
 {phang}
-{opt method}({it:type}) this option allows you to change the estimation method. sdid refers to synthetic difference-in-differences, sc refers to synthetic control, and did refers to difference-in-differences. By default, sdid is enabled.
+{opt method}({it:type}) this option allows for alternative estimation methods to be performed.  Allowed {it:type}s are "sdid" (synthetic difference-in-differences)
+"did (standard difference-in-differences) or "sc" (standard synthetic control).  
+If this option is not included, sdid is assumed by default.
 
 {pstd}
 {p_end}
@@ -130,7 +132,7 @@ inclusion of redundant covariates.
 {pstd}
 {p_end}
 {phang}
-{opt g1on} this option activates the unit-specific weight graph. By default g1 is off.
+{opt g1on} this option activates the unit-specific weight graph. By default g1 is off, as this graph can take considerable time to generate where a large number of control units are present.
 
 {pstd}
 {p_end}
