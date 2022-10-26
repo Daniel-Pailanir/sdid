@@ -23,7 +23,7 @@ net install sdid, from("https://raw.githubusercontent.com/daniel-pailanir/sdid/m
 ```s
 sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method]) method(methodtype)
                         unstandardized graph_export([stub] , type) mattitles
-                        graph g1_opt(string) g2_opt(string) msize()
+                        graph g1on g1_opt(string) g2_opt(string) msize() 
 ```
 + vce(): **bootstrap**, **jackknife** and **placebo**. If you want to omit this procedure use **noinference**.
 + method(): **sdid** for Synthetic DiD, **did** for DiD and **sc** for Synthetic Control.
@@ -31,6 +31,7 @@ sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method
 + reps(): repetitions for bootstrap and placebo se.
 + covariates(  varlist [, method]): covariates included to adjust Y.  A varlist of covariates should be included, and optionally an option for the method used to adjust.  This can be "optimized" in which case it follows the method proposed by Arkhangelsky et al., or "projected", in which case it follows the procedure proposed by Kranz, 2021 (xsynth in R).  Where method is not specified, optimized is used as default.  Kranz has shown that the projected method is preferable in a number of circumstances.  In this implementation, the projected method is often considerably faster.
 + graph: If this option is specified, graphs will be displayed showing unit and time weights as well as outcome trends as per figure 1 from Arkhangelsky et al.
++ g1on: this option activates the unit-specific weight graph. By default g1 is off.
 + g1_opt() and g2_opt(): option to modify the appearance of the aforementioned graphs.  g1 refers to the unit-specific weight graph, while g2 refers to the outcome trend groaphs. Options requested have to follow the syntax of Stata's twoway_options.
 + unstandardized: If controls are included and the "optimized" method is specified, controls will be standardized as Z-scores prior to finding optimal weights.  This avoids problems with optimization when control variables have very high dispersion.  If unstandardized is specified, controls will simply be entered in their original units.  This option should be used with care.
 + msize(): allows you to modify the size of the marker for graph 1.
