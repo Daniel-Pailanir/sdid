@@ -9,6 +9,7 @@ Versions
 1.1.0 May 13, 2022: Correction for 13.0 Mata, bug fix, adding if/in
 1.2.0 Jul 12, 2022: Exporting additional details         [SSC]
 1.3.0 Jul 13, 2022: Addition of DiD and SC methods
+1.4.0 Jan 15, 2023: Standard error for each adoption (Bootstrap only)
 */
 
 cap program drop sdid
@@ -321,6 +322,8 @@ if "`vce'"=="bootstrap" {
     local b = 1
     local B = `reps'
     mata: ATT_b = J(`B', 1, .)
+    mata: tau_b = J(1, 2, .)
+    mata: se_tau = J(`nadop', 1, .)
 	
     dis "Bootstrap replications (`reps'). This may take some time."
     dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
@@ -348,9 +351,25 @@ if "`vce'"=="bootstrap" {
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
             mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m')
+			
+            *taus for adoption times
+            mata: ty = uniqrows(select(data[,7], data[,5]:==1))
+            mata: ty_taus = (ty , st_matrix("tau_i"))
+            mata: tau_b =  (tau_b\ty_taus)
+			
             local ++b
         }
         restore
+    }
+	
+    *SE for adoption times
+    local i=1
+    foreach tr of local tryear {
+        mata: nr_tau = rows(select(tau_b[,2], tau_b[,1]:==`tr'))
+        mata: vect_tau = select(tau_b[,2], tau_b[,1]:==`tr')
+        mata: se_tau[`i',1] = sqrt((nr_tau-1)/nr_tau) * sqrt(variance(vec(vect_tau)))
+        mata: st_matrix("se_tau",se_tau)	
+        local ++i
     }
 	
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_b)))
@@ -371,7 +390,7 @@ else if "`vce'"=="placebo" {
     while `b'<=`B' {
         preserve
         qui keep if `touse'
-	    sort `3' `2'
+        sort `3' `2'
 		
         keep `1' `2' `3' `4' `tyear' `conts'
         tempvar r rand id
@@ -421,7 +440,15 @@ matrix rownames V=`4'
 ereturn post b V, depname(`1') obs(`Ntotal')
 }
 
-matrix tau=(tau,adoption)
+if "`vce'"=="bootstrap" {
+	matrix tau=(tau,se_tau,adoption)
+	matrix colnames tau = Tau Std.Err. Time
+}
+else {
+	matrix tau=(tau,adoption)
+	matrix colnames tau = Tau Time
+}
+
 qui levelsof `2' if `touse'
 local nclust: word count `r(levels)'
 
@@ -431,7 +458,6 @@ ereturn scalar ATT    =`ATT'
 ereturn scalar reps   =`reps'
 ereturn scalar N_clust=`nclust'
 
-matrix colnames tau = Tau Time
 if "`mattitles'"!="" {
         local rn ""
         foreach n of local rnames {
@@ -821,10 +847,10 @@ mata:
             sig_t = sqrt(variance(prediff))
             EtaLambda = 1e-6
             
-			if (mt!=3) {
+            if (mt!=3) {
                 EtaOmega = (yNtr*yTpost)^(1/4)
             }
-			if (mt==3) {
+            if (mt==3) {
                 EtaOmega = 1e-6
             }
 			
@@ -1132,6 +1158,10 @@ mata:
             st_matrix("tau"   ,tau)
             st_matrix("beta"  ,Beta)	
         }
+        if (inference==1) {
+            tau_i = tau
+            st_matrix("tau_i",tau_i)
+        }
         return(ATT)
     }
 end
@@ -1267,5 +1297,6 @@ mata:
         Yprojected = Y[.,1]-X*Beta
 }
 end
+
 
 
