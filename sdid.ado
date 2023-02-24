@@ -10,6 +10,7 @@ Versions
 1.2.0 Jul 12, 2022: Exporting additional details         [SSC]
 1.3.0 Jul 13, 2022: Addition of DiD and SC methods
 1.4.0 Jan 15, 2023: Standard error for each adoption (Bootstrap only)
+1.4.0 Feb 23, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife)
 */
 
 cap program drop sdid
@@ -279,6 +280,11 @@ mata: LAMBDA = st_matrix("lambda")
 mata: tau    = st_matrix("tau") 
 mata: st_local("ATT", strofreal(ATT))
 
+if "`jk'"=="1" {
+    mata: se_tau = st_matrix("se_i")
+    mata: st_matrix("se_tau",se_tau)
+}
+
 qui count if `3'==`mint'                 //total units
 local N=r(N)
 qui count if `treated'==0 & `3'==`mint' //control units
@@ -383,6 +389,8 @@ else if "`vce'"=="placebo" {
     local b = 1
     local B = `reps'
     mata: ATT_p = J(`B', 1, .)
+    mata: tau_p = J(1, 2, .)
+    mata: se_tau = J(`nadop', 1, .)
 	
     dis "Placebo replications (`reps'). This may take some time."
     dis "----+--- 1 ---+--- 2 ---+--- 3 ---+--- 4 ---+--- 5"
@@ -390,18 +398,20 @@ else if "`vce'"=="placebo" {
     while `b'<=`B' {
         preserve
         qui keep if `touse'
-        sort `3' `2'
 		
         keep `1' `2' `3' `4' `tyear' `conts'
-        tempvar r rand id
-        qui gen `r'=runiform() in 1/`co'
-        bys `2': egen `rand'=sum(`r')
-        qui drop if `tyear'!=.        //drop treated units
-        egen `id' = group(`rand')     //gen numeric order by runiform variable
+		qui drop if `tyear'!=.        //drop treated units
 
+        tempvar r rand id
+		sort `3' `2'
+        qui gen `r'=runiform() in 1/`co'		
+        bys `2': egen `rand'=sum(`r')				
+        egen `id' = group(`rand')     //gen numeric order by runiform variable
+		
         local i=1
         forvalues y=`newtr'/`co' {
             qui replace `tyear'=tryears[`i',1] if `id'==`y'
+			
             local ++i
         }
 
@@ -416,8 +426,24 @@ else if "`vce'"=="placebo" {
         mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
         mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m')
+		
+        *taus for adoption times
+        mata: ty = uniqrows(select(data[,7], data[,5]:==1))
+        mata: ty_taus = (ty, st_matrix("tau_i"))
+        mata: tau_p =  (tau_p\ty_taus)
+		
         local ++b
         restore
+    }
+	
+    *SE for adoption times
+    local i=1
+    foreach tr of local tryear {
+        mata: nr_tau = rows(select(tau_p[,2], tau_p[,1]:==`tr'))
+        mata: vect_tau = select(tau_p[,2], tau_p[,1]:==`tr')
+        mata: se_tau[`i',1] = sqrt((nr_tau-1)/nr_tau) * sqrt(variance(vec(vect_tau)))
+        mata: st_matrix("se_tau",se_tau)	
+        local ++i
     }
 	
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_p)))
@@ -440,10 +466,11 @@ matrix rownames V=`4'
 ereturn post b V, depname(`1') obs(`Ntotal')
 }
 
-if "`vce'"=="bootstrap" {
+*if "`vce'"=="bootstrap" | "`vce'"=="placebo" {
 	matrix tau=(tau,se_tau,adoption)
 	matrix colnames tau = Tau Std.Err. Time
-}
+*}
+
 else {
 	matrix tau=(tau,adoption)
 	matrix colnames tau = Tau Time
@@ -1022,7 +1049,9 @@ mata:
             tau_aux    = J(rows(trt),1,.)
             tau_wt_aux = J(1,rows(trt),.)
             ATT_aux = J(N,1,.)
-        
+            tau_aux_j = J(2,N,.)
+			se_aux_j = J(rows(trt),1,.)
+
             yNco_ori=yNco
             ind=(1::yNco)
             for (i=1; i<=N; ++i) {
@@ -1142,11 +1171,19 @@ mata:
                         tau_wt_aux[yr] = yNtr*Npost	
                     }				
                 }
+				tau_aux_j[,i] = tau_aux
                 tau_wt_aux = tau_wt_aux/sum(tau_wt_aux')
                 ATT_aux[i] = tau_wt_aux*tau_aux	
             }
+			
+            // SE for any adoption
+            for (i=1; i<=rows(trt); ++i) {
+                se_aux_j[i,] = sqrt(((N-1)/N) * (N - 1) * variance(vec(tau_aux_j[i,])))
+            }
+			
             se_j = sqrt(((N-1)/N) * (N - 1) * variance(vec(ATT_aux)))
             st_local("se", strofreal(se_j))
+            st_matrix("se_i", se_aux_j)
         }
 		
         tau_wt = tau_wt/sum(tau_wt')
@@ -1158,7 +1195,7 @@ mata:
             st_matrix("tau"   ,tau)
             st_matrix("beta"  ,Beta)	
         }
-        if (inference==1) {
+        if (inference==1 & jk!=1) {
             tau_i = tau
             st_matrix("tau_i",tau_i)
         }
@@ -1297,6 +1334,4 @@ mata:
         Yprojected = Y[.,1]-X*Beta
 }
 end
-
-
 
