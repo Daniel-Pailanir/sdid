@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.0.0 April 01, 2022}
+{* *! version 2.0.0 February 23, 2024}
 {title:Title}
 
 {p 4 4 2}
@@ -57,6 +57,7 @@ time, while control units never adopt.  {cmd:sdid} seamlessly estimates treatmen
 multiple-time periods of treatment.  In the latter case, rather than calculating a single unit and time-specific weight vector,
 an optimal unit and time-specific weight vector is calculated for each adoption period.  The reported average treatment effect
 on the treated (ATT) in the staggered adoption design is the weighted estimand described in Arkhangelsky et al. (2021), Appendix A.
+Additionally, adoption-period specific estimates and their standard errors are returned after estimation.
 {p_end} 
 
 {pstd}
@@ -77,7 +78,9 @@ output documenting optimal weights, as well as matched treatment and synthetic c
 difference-in-differences framework.  Details related to covariates and graphical options are described at more length below.
 {p_end}
 
-
+{pstd}
+Further discussion of this procedure and its implementation in Stata is available in "Synthetic Difference-in-Differences Estimation" (Clarke et al., 2023).
+{p_end}
 
 {marker options}{...}
 {title:Options}
@@ -203,12 +206,12 @@ order based on the unit variable, if this variable is in string format.
 
 {synoptset 20 tabbed}{...}
 {p2col 5 20 24 2: Matrices}{p_end}
-{synopt:{cmd:e(tau)}}tau estimator for each adoption time-period{p_end}
+{synopt:{cmd:e(tau)}}tau estimator for each adoption time-period, along with its standard error{p_end}
 {synopt:{cmd:e(lambda)}}lambda weights (time-specific weights){p_end}
 {synopt:{cmd:e(omega)}}omega weights (unit-specific weights){p_end}
 {synopt:{cmd:e(adoption)}}adoption times{p_end}
-{synopt:{cmd:e(beta)}}beta vector of corresponding to covariates{p_end}
-{synopt:{cmd:e(series)}}control and treatment series of the graphs{p_end}
+{synopt:{cmd:e(beta)}}beta vector of corresponding to covariates (only returned when the covariates option is indicated){p_end}
+{synopt:{cmd:e(series)}}control and treatment series of the graphs (only returned when the graph option is indicated) {p_end}
 {synopt:{cmd:e(difference)}}difference between treatment and control series (only returned when the graph option is indicated){p_end}
 
 {pstd}
@@ -265,6 +268,11 @@ American Economic Review.
 {phang}
 S. Bhalotra, D. Clarke, J. Gomes, and A. Venkataramani. 2020. {browse "https://conference.iza.org/conference_files/Gender_2021/clarke_d24360.pdf": {it:Maternal Mortality and Women's Political Participation}.}
 Centre for Economic Policy Research Discussion Paper. 
+{p_end}
+
+{phang}
+D. Clarke, D Pailañir, S. Athey and G. Imbens. 2023. {browse "https://docs.iza.org/dp15907.pdf": {it:Synthetic Difference-in-Differences Estimation}.}
+IZA Discussion Paper. 
 {p_end}
 
 {phang}
