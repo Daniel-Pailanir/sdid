@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 1.3.0 July 22, 2022
+*! Version 2.0.0 February 24, 2023
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
@@ -10,7 +10,7 @@ Versions
 1.2.0 Jul 12, 2022: Exporting additional details         [SSC]
 1.3.0 Jul 13, 2022: Addition of DiD and SC methods
 1.4.0 Jan 15, 2023: Standard error for each adoption (Bootstrap only)
-1.4.0 Feb 23, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife)
+2.0.0 Feb 24, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife) [SSC]
 */
 
 cap program drop sdid
