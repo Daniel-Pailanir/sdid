@@ -466,10 +466,10 @@ matrix rownames V=`4'
 ereturn post b V, depname(`1') obs(`Ntotal')
 }
 
-*if "`vce'"=="bootstrap" | "`vce'"=="placebo" {
+if "`vce'"!="noinference" {
 	matrix tau=(tau,se_tau,adoption)
 	matrix colnames tau = Tau Std.Err. Time
-*}
+}
 
 else {
 	matrix tau=(tau,adoption)
