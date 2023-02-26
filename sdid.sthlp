@@ -20,7 +20,7 @@ Optional {it:type} can be specified, as either "optimized" (the default) or "pro
 {synopt :{opt seed}({it:#})} set random-number seed to #.{p_end}
 {synopt :{opt reps}({it:#})} repetitions for bootstrap and placebo inference.{p_end}
 {synopt :{opt method(type)}} Allows for an estimation method to be requested.  {it: type} can be "sdid" (which is estimated by default), "did" (for standard difference-in-differencs) or "sc" (for standard synthetic control).{p_end}
-{synopt :{opt graph}} if this option is specified, graphs will be displayed in the style of figure 1 from {help sdid##SDID2021:Arkhangelsky et al. (2021)}{p_end}
+{synopt :{opt graph}} if this option is specified, graphs will be displayed in the style of figure 1 from {help sdid##SDID2021:Arkhangelsky et al. (2021)}.{p_end}
 {synopt :{opt g1on}} If graphing is requested, this option activates the unit-specific weight graph.{p_end}
 {synopt :{opt g1_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the unit-specific weight graph.{p_end}
 {synopt :{opt g2_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the outcome trend graphs.{p_end}
@@ -48,6 +48,7 @@ of the groupvar corresponding to each weight.{p_end}
  between treated units and synthetic control units, where synthetic control units are chosen as an optimally weighted function
  of untreated units (unit-specific weights) and pre-treatment times (time-specific weights).  The {cmd:sdid} command exactly implements
  the procedures described in Arkhangelsky et al. (2021).  The exact estimation procedure implemented by {cmd:sdid} is described in their Algorithm 1.
+ Further discussion of this procedure and its implementation in Stata is available in "Synthetic Difference-in-Differences Estimation" (Clarke et al., 2023).
 {p_end}
 
 {pstd}
@@ -56,8 +57,8 @@ estimation procedure in cases of staggered-adoption designs, where treated units
 time, while control units never adopt.  {cmd:sdid} seamlessly estimates treatment effects in cases with both single-time periods of treatment and
 multiple-time periods of treatment.  In the latter case, rather than calculating a single unit and time-specific weight vector,
 an optimal unit and time-specific weight vector is calculated for each adoption period.  The reported average treatment effect
-on the treated (ATT) in the staggered adoption design is the weighted estimand described in Arkhangelsky et al. (2021), Appendix A.
-Additionally, adoption-period specific estimates and their standard errors are returned after estimation.
+on the treated (ATT) in the staggered adoption design is the weighted estimand described in Arkhangelsky et al. (2021), Appendix A. Additionally,
+adoption-period specific estimates and their standard errors are returned after estimation.
 {p_end} 
 
 {pstd}
@@ -78,9 +79,6 @@ output documenting optimal weights, as well as matched treatment and synthetic c
 difference-in-differences framework.  Details related to covariates and graphical options are described at more length below.
 {p_end}
 
-{pstd}
-Further discussion of this procedure and its implementation in Stata is available in "Synthetic Difference-in-Differences Estimation" (Clarke et al., 2023).
-{p_end}
 
 {marker options}{...}
 {title:Options}
