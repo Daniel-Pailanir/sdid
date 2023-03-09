@@ -3,7 +3,7 @@
 # sdid -- Synthetic Difference-in-Differences for Stata
 
 This Stata package implements the synthetic difference-in-differences estimation procedure, along with a range of inference and graphing procedures, following Arkhangelsky et al., (2021).  Arkhangelsky et al. provide a code implementation in R, with accompanying materials here: [synthdid](https://synth-inference.github.io/synthdid/). 
-Here we provide a native Stata implementation, principally written in Mata.  This package extends the funcionality of the original R package, allowing very simply for estimation in contexts with staggered adoption over multiple treatment periods (as well as in a single adoption period as in the original code). 
+Here we provide a native Stata implementation, principally written in Mata.  This package extends the funcionality of the original R package, allowing very simply for estimation in contexts with staggered adoption over multiple treatment periods (as well as in a single adoption period as in the original code).  Some further details can be found in the accompanying working paper [here](https://docs.iza.org/dp15907.pdf).
 
 To install directly into Stata:
 ```s
@@ -111,3 +111,5 @@ Standard errors in parentheses
 
 ### References
 Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
+
+Damian Clarke, Daniel Pailañir, Susan Athey, and Guido Imbens, Synthetic Difference-in-Differences Estimation, IZA Discussion Paper, January 2023.
