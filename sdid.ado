@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 1.3.0 July 22, 2022
+*! Version 2.0.0 February 24, 2023
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
@@ -10,7 +10,7 @@ Versions
 1.2.0 Jul 12, 2022: Exporting additional details         [SSC]
 1.3.0 Jul 13, 2022: Addition of DiD and SC methods
 1.4.0 Jan 15, 2023: Standard error for each adoption (Bootstrap only)
-1.4.0 Feb 23, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife)
+2.0.0 Feb 24, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife) [SSC]
 */
 
 cap program drop sdid
@@ -160,13 +160,18 @@ if "`vce'"=="placebo" {
     qui gen `t1'=`3' if `4'==1 
     qui bys `2': egen `t2'=min(`t1') 
     qui levelsof `t2', local(T2)
+	
+    local trNtot=0
     foreach t of local T2 {
         qui count if `4'==0 & `3'==`t' & `t2'==.
         local coN=r(N)
         qui count if `4'==1 & `3'==`t' & `t2'==`t'
         local trN=r(N)
-        if (`coN'<`trN')==1 {
-            di as error "Placebo `SEN' to have more controls than treated units"
+		
+        local trNtot=`trNtot'+`trN'
+        *if (`coN'<`trN')==1 {
+         if (`coN'<=`trNtot')==1 {
+            di as error "Placebo `SEN' to have more total controls than total treated units"
             exit 451
         }
     }
@@ -410,7 +415,7 @@ else if "`vce'"=="placebo" {
 		
         local i=1
         forvalues y=`newtr'/`co' {
-            qui replace `tyear'=tryears[`i',1] if `id'==`y'
+            qui replace `tyear' = tryears[`i',1] if `id'==`y'
 			
             local ++i
         }
@@ -426,7 +431,6 @@ else if "`vce'"=="placebo" {
         mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
         mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m')
-		
         *taus for adoption times
         mata: ty = uniqrows(select(data[,7], data[,5]:==1))
         mata: ty_taus = (ty, st_matrix("tau_i"))
@@ -466,10 +470,10 @@ matrix rownames V=`4'
 ereturn post b V, depname(`1') obs(`Ntotal')
 }
 
-*if "`vce'"=="bootstrap" | "`vce'"=="placebo" {
+if "`vce'"!="noinference" {
 	matrix tau=(tau,se_tau,adoption)
 	matrix colnames tau = Tau Std.Err. Time
-*}
+}
 
 else {
 	matrix tau=(tau,adoption)
@@ -844,7 +848,6 @@ mata:
         if (inference==0 & controls==2) {
             Beta = J(cols(data)-7, rows(trt),.)
         }
-
         for(yr=1;yr<=rows(trt);++yr) {
             cond1 = data[,7]:==trt[yr]
             cond2 = data[,7]:==.
@@ -992,7 +995,6 @@ mata:
                     }
                     err_l    = (Ybeta_A_l,Ybeta_b_l)*(lambda_l' \ -1)
                     err_o    = (Ybeta_A_o,Ybeta_b_o)*(lambda_o' \ -1)
-
                     vals[1,t]=yZetaOmega^2*(lambda_o*lambda_o')+yZetaLambda^2*(lambda_l*lambda_l')+
                               (err_o'*err_o)/Npre+(err_l'*err_l)/yNco
                     if (t>1) dd = vals[1,t-1] - vals[1,t]
@@ -1049,15 +1051,13 @@ mata:
             tau_aux    = J(rows(trt),1,.)
             tau_wt_aux = J(1,rows(trt),.)
             ATT_aux = J(N,1,.)
-            tau_aux_j = J(2,N,.)
+            tau_aux_j = J(rows(trt),N,.)
 			se_aux_j = J(rows(trt),1,.)
-
             yNco_ori=yNco
             ind=(1::yNco)
             for (i=1; i<=N; ++i) {
                 drp=uniqID[i]
                 data_aux = select(data_ori, data_ori[,3]:!=drp)
-					
                 //projected adjustment
                 if (cols(data_aux)>7 & controls==1) {
                     projected(data_aux, Yprojected, Beta_jk)
@@ -1092,7 +1092,6 @@ mata:
                             J(1,Npost,1/Npost))'
                         tau_wt_aux[yr] = yNtr*Npost	
                     }
-					
                     //R adjustment
                     if (cols(data_aux)>7 & controls==2) {
                         maxiter=10000
@@ -1175,7 +1174,6 @@ mata:
                 tau_wt_aux = tau_wt_aux/sum(tau_wt_aux')
                 ATT_aux[i] = tau_wt_aux*tau_aux	
             }
-			
             // SE for any adoption
             for (i=1; i<=rows(trt); ++i) {
                 se_aux_j[i,] = sqrt(((N-1)/N) * (N - 1) * variance(vec(tau_aux_j[i,])))
