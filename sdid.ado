@@ -218,7 +218,7 @@ if length("`graph'")!=0&`stringvar'==1 {
     tempfile stateString
     rename `groupvar' stateName
     rename `2' state
-    qui save `stateString'
+    qui save "`stateString'"
     restore
 }
 
@@ -570,13 +570,13 @@ if length("`graph'")!=0 {
         getmata weight_lambda_`time' timevar, force
         ren timevar `3'
         tempfile lambda_weights_`time'
-        qui save `lambda_weights_`time''
+        qui save "`lambda_weights_`time''"
         clear
         mata: weight_omega_`time'=select(OMEGA[1::`co',],OMEGA[rows(OMEGA),]:==`time')        
         getmata weight_omega_`time' id, force
         qui ren id `2'
         tempfile omega_weights_`time'
-        qui save `omega_weights_`time''
+        qui save "`omega_weights_`time''"
         restore
     }
 
@@ -589,7 +589,7 @@ if length("`graph'")!=0 {
             qui levelsof `2', local(id2)
             qui count if `tyear'==`time' & `3'==`time'
             local Ntr=r(N)
-            qui merge m:1 `3' using `lambda_weights_`time'', nogen
+            qui merge m:1 `3' using "`lambda_weights_`time''", nogen
 
             mata: Z=J(`N',5,.)
             local i=1
@@ -649,7 +649,7 @@ if length("`graph'")!=0 {
                 }
             }
             if `stringvar'==1 {
-                qui merge 1:m state using `stateString'
+                qui merge 1:m state using "`stateString'"
                 qui keep if _merge==3
                 qui levelsof stateName, local(sgroup)
                 foreach s of local sgroup {
@@ -693,7 +693,7 @@ if length("`graph'")!=0 {
         
         preserve
         qui keep if `touse'
-        qui merge m:1 `2' using `omega_weights_`time'' , nogen		
+        qui merge m:1 `2' using "`omega_weights_`time''", nogen		
         qui keep if `tyear'==. | `tyear'==`time'
         tempvar Y_omega tipo
         qui drop if weight_omega_`time'==0
