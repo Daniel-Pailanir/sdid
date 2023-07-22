@@ -23,6 +23,7 @@ version 13.0
     seed(numlist integer >0 max=1)
     reps(integer 50)
     covariates(string asis)
+	dseta(real 1e-6)
     graph
     g1on
     g1_opt(string asis)
@@ -275,10 +276,9 @@ if "`method'"=="sdid" local m=1
 if "`method'"=="did"  local m=2
 if "`method'"=="sc"   local m=3
 
-
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m')
+mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m', `dseta')
 
 mata: OMEGA  = st_matrix("omega")
 mata: LAMBDA = st_matrix("lambda")
@@ -361,7 +361,7 @@ if "`vce'"=="bootstrap" {
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m')
+            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m', `dseta')
 			
             *taus for adoption times
             mata: ty = uniqrows(select(data[,7], data[,5]:==1))
@@ -409,11 +409,12 @@ else if "`vce'"=="placebo" {
 
         tempvar r rand id
 		sort `3' `2'
-        qui gen `r'=runiform() in 1/`co'		
-        bys `2': egen `rand'=sum(`r')				
+        qui gen `r' = runiform() in 1/`co'		
+        bys `2': egen `rand'=sum(`r')		
         egen `id' = group(`rand')     //gen numeric order by runiform variable
 		
         local i=1
+		
         forvalues y=`newtr'/`co' {
             qui replace `tyear' = tryears[`i',1] if `id'==`y'
 			
@@ -423,20 +424,24 @@ else if "`vce'"=="placebo" {
         qui replace `4'=1 if `3'>=`tyear'
         bys `2': egen `treated' = max(`4')
 		
-        display in smcl "." _continue
-        if mod(`b',50)==0 dis "     `b'"
-		
-        qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
-        mata: indicator=smerge(psam_id, (ori_id, ori_pos))
-        mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
-        mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m')
-        *taus for adoption times
-        mata: ty = uniqrows(select(data[,7], data[,5]:==1))
-        mata: ty_taus = (ty, st_matrix("tau_i"))
-        mata: tau_p =  (tau_p\ty_taus)
-		
-        local ++b
+		qui tab `2' if `4'==1
+		if r(r)>0 {
+			display in smcl "." _continue
+			if mod(`b',50)==0 dis "     `b'"
+			
+			qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
+			mata: indicator=smerge(psam_id, (ori_id, ori_pos))
+			mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
+			mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
+			mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `dseta')
+
+			*taus for adoption times
+			mata: ty = uniqrows(select(data[,7], data[,5]:==1))
+			mata: ty_taus = (ty, st_matrix("tau_i"))
+			mata: tau_p =  (tau_p\ty_taus)
+							
+			local ++b
+		}
         restore
     }
 	
@@ -806,7 +811,7 @@ end
 * (7) indicator of year treated (if treated)
 * (8+) any controls
 mata:
-    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk, mt) {
+    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk, mt, ELambda) {
         data  = sort(data, (6,2,4))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
@@ -875,7 +880,7 @@ mata:
             dropc = first+postt+ydata[,6]
             prediff = select(diff,dropc:==0)
             sig_t = sqrt(variance(prediff))
-            EtaLambda = 1e-6
+            EtaLambda = ELambda
             
             if (mt!=3) {
                 EtaOmega = (yNtr*yTpost)^(1/4)
