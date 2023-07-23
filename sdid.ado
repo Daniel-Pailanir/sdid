@@ -407,18 +407,21 @@ else if "`vce'"=="placebo" {
         keep `1' `2' `3' `4' `tyear' `conts'
 		qui drop if `tyear'!=.        //drop treated units
 		
+		tempvar id
+        egen `id' = group(`2')
+		
 		*generate vector of selected placebos
 		local rowsselect = `co'-`newtr'+1
         mata st_matrix("Select", rdiscrete(`rowsselect', 1, J(`co',1,1/`co')))
-		
+				
 		*replace treatment status with placebos
         forval i=1/`rowsselect' {
-            qui replace `tyear' = tryears[`i',1] if `2'==Select[`i',1]
+            qui replace `tyear' = tryears[`i',1] if `id'==Select[`i',1]
         }
 
-        qui replace `4'=1 if `3'>=`tyear'
-        bys `2': egen `treated' = max(`4')
-		
+        qui replace `4' = 1 if `3'>=`tyear'
+        egen `treated' = max(`4'), by(`2')
+				
 		display in smcl "." _continue
 		if mod(`b',50)==0 dis "     `b'"
 		
