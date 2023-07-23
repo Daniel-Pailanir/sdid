@@ -406,42 +406,34 @@ else if "`vce'"=="placebo" {
 		
         keep `1' `2' `3' `4' `tyear' `conts'
 		qui drop if `tyear'!=.        //drop treated units
-
-        tempvar r rand id
-		sort `3' `2'
-        qui gen `r' = runiform() in 1/`co'		
-        bys `2': egen `rand'=sum(`r')		
-        egen `id' = group(`rand')     //gen numeric order by runiform variable
 		
-        local i=1
+		*generate vector of selected placebos
+		local rowsselect = `co'-`newtr'+1
+        mata st_matrix("Select", rdiscrete(`rowsselect', 1, J(`co',1,1/`co')))
 		
-        forvalues y=`newtr'/`co' {
-            qui replace `tyear' = tryears[`i',1] if `id'==`y'
-			
-            local ++i
+		*replace treatment status with placebos
+        forval i=1/`rowsselect' {
+            qui replace `tyear' = tryears[`i',1] if `2'==Select[`i',1]
         }
 
         qui replace `4'=1 if `3'>=`tyear'
         bys `2': egen `treated' = max(`4')
 		
-		qui tab `2' if `4'==1
-		if r(r)>0 {
-			display in smcl "." _continue
-			if mod(`b',50)==0 dis "     `b'"
-			
-			qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
-			mata: indicator=smerge(psam_id, (ori_id, ori_pos))
-			mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
-			mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-			mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `dseta')
+		display in smcl "." _continue
+		if mod(`b',50)==0 dis "     `b'"
+		
+		qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
+		mata: indicator=smerge(psam_id, (ori_id, ori_pos))
+		mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
+		mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
+		mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `dseta')
 
-			*taus for adoption times
-			mata: ty = uniqrows(select(data[,7], data[,5]:==1))
-			mata: ty_taus = (ty, st_matrix("tau_i"))
-			mata: tau_p =  (tau_p\ty_taus)
+		*taus for adoption times
+		mata: ty = uniqrows(select(data[,7], data[,5]:==1))
+		mata: ty_taus = (ty, st_matrix("tau_i"))
+		mata: tau_p =  (tau_p\ty_taus)
 							
-			local ++b
-		}
+		local ++b
         restore
     }
 	
