@@ -409,11 +409,15 @@ else if "`vce'"=="placebo" {
 		
 		tempvar id
         egen `id' = group(`2')
+        qui sum `id'
+        local max = r(max)
 		
 		*generate vector of selected placebos
-		local rowsselect = `co'-`newtr'+1
-        mata st_matrix("Select", rdiscrete(`rowsselect', 1, J(`co',1,1/`co')))
-				
+        local rowsselect = `co'-`newtr'+1				
+        mata id_list = range(1, `max', 1)
+        mata asignar_pr = (id_list, runiform(`max',1))
+        mata st_matrix("Select", sort(asignar_pr, 2)[1..`rowsselect', 1])
+        				
 		*replace treatment status with placebos
         forval i=1/`rowsselect' {
             qui replace `tyear' = tryears[`i',1] if `id'==Select[`i',1]
