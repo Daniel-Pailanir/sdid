@@ -405,20 +405,20 @@ else if "`vce'"=="placebo" {
         qui keep if `touse'
 		
         keep `1' `2' `3' `4' `tyear' `conts'
-		qui drop if `tyear'!=.        //drop treated units
+        qui drop if `tyear'!=.        //drop treated units
 		
-		tempvar id
+        tempvar id
         egen `id' = group(`2')
         qui sum `id'
         local max = r(max)
 		
-		*generate vector of selected placebos
+        *generate vector of selected placebos
         local rowsselect = `co'-`newtr'+1				
         mata id_list = range(1, `max', 1)
         mata asignar_pr = (id_list, runiform(`max',1))
         mata st_matrix("Select", sort(asignar_pr, 2)[1..`rowsselect', 1])
         				
-		*replace treatment status with placebos
+        *replace treatment status with placebos
         forval i=1/`rowsselect' {
             qui replace `tyear' = tryears[`i',1] if `id'==Select[`i',1]
         }
@@ -1174,7 +1174,7 @@ mata:
                         tau_wt_aux[yr] = yNtr*Npost	
                     }				
                 }
-				tau_aux_j[,i] = tau_aux
+                tau_aux_j[,i] = tau_aux
                 tau_wt_aux = tau_wt_aux/sum(tau_wt_aux')
                 ATT_aux[i] = tau_wt_aux*tau_aux	
             }
