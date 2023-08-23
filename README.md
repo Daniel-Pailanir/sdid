@@ -21,7 +21,8 @@ net install sdid, from("https://raw.githubusercontent.com/daniel-pailanir/sdid/m
 
 ## Syntax
 ```s
-sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method]) dseta(real)
+sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method])
+                        zeta_lambda(real) zeta_omega(real) min_dec(real) max_iter(real)
                         method(methodtype) unstandardized graph_export([stub] , type) mattitles
                         graph g1on g1_opt(string) g2_opt(string) msize() 
 ```
