@@ -23,7 +23,10 @@ version 13.0
     seed(numlist integer >0 max=1)
     reps(integer 50)
     covariates(string asis)
-	dseta(real 1e-6)
+    zeta_lambda(real 1e-6)
+    zeta_omega(real 1e-6)
+    min_dec(real 1e-5)
+	max_iter(real 1e4)
     graph
     g1on
     g1_opt(string asis)
@@ -278,7 +281,7 @@ if "`method'"=="sc"   local m=3
 
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m', `dseta')
+mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
 
 mata: OMEGA  = st_matrix("omega")
 mata: LAMBDA = st_matrix("lambda")
@@ -361,7 +364,7 @@ if "`vce'"=="bootstrap" {
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m', `dseta')
+            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
 			
             *taus for adoption times
             mata: ty = uniqrows(select(data[,7], data[,5]:==1))
@@ -433,7 +436,7 @@ else if "`vce'"=="placebo" {
 		mata: indicator=smerge(psam_id, (ori_id, ori_pos))
 		mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
 		mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-		mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `dseta')
+		mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
 
 		*taus for adoption times
 		mata: ty = uniqrows(select(data[,7], data[,5]:==1))
@@ -810,7 +813,7 @@ end
 * (7) indicator of year treated (if treated)
 * (8+) any controls
 mata:
-    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk, mt, ELambda) {
+    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk, mt, ELambda, EOmega, MinDec, MaxIter) {
         data  = sort(data, (6,2,4))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
@@ -880,12 +883,12 @@ mata:
             prediff = select(diff,dropc:==0)
             sig_t = sqrt(variance(prediff))
             EtaLambda = ELambda
-            
+			
             if (mt!=3) {
                 EtaOmega = (yNtr*yTpost)^(1/4)
             }
             if (mt==3) {
-                EtaOmega = 1e-6
+                EtaOmega = EOmega
             }
 			
             yZetaOmega  = EtaOmega*sig_t
@@ -929,7 +932,7 @@ mata:
                 }
                 lambda_o = J(1,cols(A_o),1/cols(A_o))
             }
-            mindec = (1e-5*sig_t)^2
+            mindec = (MinDec*sig_t)^2
 			
             if (controls==2) {
                 K = cols(data)
@@ -945,7 +948,7 @@ mata:
                     n++
                 }
 				
-                maxiter=10000
+                maxiter = MaxIter
                 vals = J(1, maxiter, .)
                 beta=J(1,(K-7),0)
                 gradbeta = J(1,(K-7),0)
@@ -1025,11 +1028,11 @@ mata:
                     if (mt==1) {
                         lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
                         lambda_l = sspar(lambda_l)
-                        lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, 10000,mindec)
+                        lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, MaxIter,mindec)
                     }
                     lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
                     lambda_o = sspar(lambda_o)
-                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 10000,mindec)
+                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, MaxIter,mindec)
                 }
                 if (inference==0) {
                     Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
