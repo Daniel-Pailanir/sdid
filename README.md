@@ -31,7 +31,10 @@ sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method
 + seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
 + covariates(  varlist [, method]): covariates included to adjust Y.  A varlist of covariates should be included, and optionally an option for the method used to adjust.  This can be "optimized" in which case it follows the method proposed by Arkhangelsky et al., or "projected", in which case it follows the procedure proposed by Kranz, 2021 (xsynth in R).  Where method is not specified, optimized is used as default.  Kranz has shown that the projected method is preferable in a number of circumstances.  In this implementation, the projected method is often considerably faster.
-+ dseta: Define the regularization term $\zeta$. Defatul is 1e-6.
++ zeta_lambda: Define the regularization term $\zeta$. Default is 1e-6.
++ zeta_omega: Define the regularization term $\zeta$. Default is $(N_{tr} T_{post})^{1/4}$ for SDID estimator and 1e-6 for the rest of estimators.
++ min_dec: Define the MinDec term in $(\text{MinDec}\times \sigma_t)^2$. Is a stopping criteria for our weight estimator. Default is 1e-5.
++ max_iter: Defines the maximum number of iterations. Default is 10,000.
 + graph: If this option is specified, graphs will be displayed showing unit and time weights as well as outcome trends as per figure 1 from Arkhangelsky et al.
 + g1on: this option activates the unit-specific weight graph. By default g1 is off.
 + g1_opt() and g2_opt(): option to modify the appearance of the aforementioned graphs.  g1 refers to the unit-specific weight graph, while g2 refers to the outcome trend groaphs. Options requested have to follow the syntax of Stata's twoway_options.
