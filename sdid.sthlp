@@ -196,6 +196,8 @@ order based on the unit variable, if this variable is in string format.
 {p2col 5 20 24 2: Scalars}{p_end}
 {synopt:{cmd:e(ATT)}}ATT {p_end}
 {synopt:{cmd:e(se)}}Standard error {p_end}
+{synopt:{cmd:e(ATT_l)}}ATT left CI {p_end}
+{synopt:{cmd:e(ATT_r)}}ATT right CI {p_end}
 {synopt:{cmd:e(reps)}}Number of bootstrap/placebo replications {p_end}
 {synopt:{cmd:e(N_clust)}}Number of clusters {p_end}
 
