@@ -20,7 +20,7 @@ Optional {it:type} can be specified, as either "optimized" (the default) or "pro
 {synopt :{opt seed}({it:#})} set random-number seed to #.{p_end}
 {synopt :{opt reps}({it:#})} repetitions for bootstrap and placebo inference.{p_end}
 {synopt :{opt method(type)}} Allows for an estimation method to be requested.  {it: type} can be "sdid" (which is estimated by default), "did" (for standard difference-in-differencs) or "sc" (for standard synthetic control).{p_end}
-{synopt :{opt dseta}({it:#})} Allows for control of the regularisation parameter (zeta) defined in {help sdid##SDID2021:Arkhangelsky et al. (2021, equation 5)}.  If not specified, default values described in  {help sdid##SDID2021:Arkhangelsky et al. (2021)} are used.{p_end}
+{synopt :{opt zeta_lambda}({it:#})} Allows for control of the regularisation parameter (zeta) defined in {help sdid##SDID2021:Arkhangelsky et al. (2021, equation 5)}.  If not specified, default values described in  {help sdid##SDID2021:Arkhangelsky et al. (2021)} are used.{p_end}
 {synopt :{opt graph}} if this option is specified, graphs will be displayed in the style of figure 1 from {help sdid##SDID2021:Arkhangelsky et al. (2021)}.{p_end}
 {synopt :{opt g1on}} If graphing is requested, this option activates the unit-specific weight graph.{p_end}
 {synopt :{opt g1_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the unit-specific weight graph.{p_end}
