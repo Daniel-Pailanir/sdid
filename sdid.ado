@@ -13,7 +13,6 @@ Versions
 2.0.0 Feb 24, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife) [SSC]
 */
 
-cap program drop sdid
 program sdid, eclass
 version 13.0
 
@@ -26,7 +25,8 @@ version 13.0
     zeta_lambda(real 1e-6)
     zeta_omega(real 1e-6)
     min_dec(real 1e-5)
-	max_iter(real 1e4)
+    max_iter(real 1e4)
+    level(integer 95)
     graph
     g1on
     g1_opt(string asis)
@@ -456,7 +456,6 @@ else if "`vce'"=="placebo" {
         mata: st_matrix("se_tau",se_tau)	
         local ++i
     }
-	
     mata: se = sqrt((`B'-1)/`B') * sqrt(variance(vec(ATT_p)))
     mata: st_local("se", strofreal(se))
 }
@@ -524,12 +523,13 @@ ereturn local vce      "`vce'"
 ereturn local title    "Synthetic Difference-in-Differences"
 ereturn local cmd      "sdid"
 
-
 local t=`ATT'/`se'
-local pval= 2 * (1-normal(abs(`ATT'/`se'))) 
-local LCI=`ATT'+invnormal(0.025)*`se'
-local UCI=`ATT'+invnormal(0.975)*`se'
-
+local pval= 2 * (1-normal(abs(`ATT'/`se')))
+local v = (1-`level'/100)/2
+local LCI = `ATT' + invnormal(`v')*`se'
+local UCI = `ATT' + invnormal(1-`v')*`se'
+ereturn scalar ATT_l = `LCI' 
+ereturn scalar ATT_r = `UCI'
 
 if ("`method'"=="sdid" | "`method'"=="" ) {
     local tabletitle "Synthetic Difference-in-Differences Estimator"
@@ -551,7 +551,7 @@ di as text ""
 di as text "`tabletitle'" 
 di as text ""
 di as text "{hline 13}{c TT}{hline 63}"
-di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t      P>|t|    [95% Conf. Interval]" 
+di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t      P>|t|    [`level'% Conf. Interval]" 
 di as text "{hline 13}{c +}{hline 63}"
 di as text %12s abbrev("`4'",12) " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' %9.3f `pval' "   " %9.5f `LCI' "   " %9.5f `UCI'
 di as text "{hline 13}{c BT}{hline 63}"
@@ -562,7 +562,7 @@ di as text "`tablefootnote'"
 * (6) Graphing
 *--------------------------------------------------------------------------*
 if length("`graph'")!=0 {
-    if `co'>1000 {
+    if (`co'>1000 & "`g1on'"=="g1on") {
         local vis "and graphed unit weights are unlikely to be easily visualized."
         dis "Be careful with graph option. You have a lot of control units `vis'"
     }
@@ -723,7 +723,7 @@ if length("`graph'")!=0 {
 		matrix diff`time' = Ytr`time'-Yco`time'
 		mat coln diff`time' = Diff`time'
 		
-        local timelambda "|| area lambda `3', yaxis(2) lp(solid) ylabel(0(1)3, axis(2)) yscale(off axis(2))"
+        local timelambda "|| area lambda `3', yaxis(2) lp(solid) ylabel(0(0.25)1, format(%5.1f) axis(2)) yscale(range(0(1)3) axis(2)) ytitle("Lambda weight", margin(0 0 0 45) axis(2))"
         if "`method'"=="sc" local timelambda 
 		
         #delimit ;
@@ -1339,4 +1339,5 @@ mata:
         Yprojected = Y[.,1]-X*Beta
 }
 end
+
 
