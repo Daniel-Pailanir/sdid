@@ -50,7 +50,7 @@ webuse prop99_example.dta, clear
 
 #delimit ;
 sdid packspercapita state year treated, vce(placebo) reps(100) seed(123) 
-     graph g1_opt(xtitle("") ylabel(-35(5)10) scheme(plotplainblind)) 
+     graph g1on g1_opt(xtitle("") ylabel(-35(5)10) scheme(plotplainblind)) 
      g2_opt(ylabel(0(50)150) xlabel(1970(5)2000) ytitle("Packs per capita") 
             xtitle("") text(125 1995 "ATT = -15.604" " SE = (9.338)") scheme(plotplainblind))
     graph_export(sdid_, .png);
