@@ -723,8 +723,8 @@ if length("`graph'")!=0 {
         mat coln Yco`time' = Yco`time' 
         mat coln Ytr`time' = Ytr`time' 
 		
-		matrix diff`time' = Ytr`time'-Yco`time'
-		mat coln diff`time' = Diff`time'
+        matrix diff`time' = Ytr`time'-Yco`time'
+        mat coln diff`time' = Diff`time'
 		
         local timelambda "|| area lambda `3', yaxis(2) lp(solid) ylabel(0(0.25)1, format(%5.1f) axis(2)) yscale(range(0(1)3) axis(2)) ytitle("Lambda weight", margin(0 0 0 45) axis(2))"
         if "`method'"=="sc" local timelambda 
@@ -888,7 +888,12 @@ mata:
             EtaLambda = ELambda
 			
             if (mt!=3) {
-                EtaOmega = (yNtr*yTpost)^(1/4)
+                if (EOmega==1e-6) {
+                    EtaOmega = (yNtr*yTpost)^(1/4)
+                }
+                else {
+                    EtaOmega = EOmega
+                }
             }
             if (mt==3) {
                 EtaOmega = EOmega
