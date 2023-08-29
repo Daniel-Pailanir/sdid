@@ -673,7 +673,10 @@ if length("`graph'")!=0 {
             _graph_Name `graph_export'
             local gstub = r(gstub)
             local suffix = r(suffix)
-            
+            			
+            if "`suffix'"==".gph" local pre graph save
+            else                  local pre graph export
+			
             if "`gstub'"=="."  local gstub
             if "`suffix'"=="." local suffix
             local ex=1
@@ -692,7 +695,7 @@ if length("`graph'")!=0 {
                 yline(`tau', lc(red)) 
                 `g1_opt' name(g1_`time', replace) legend(off);
             #delimit cr
-            if `ex'==1 graph export "`gstub'weights`time'`suffix'", replace
+            if `ex'==1 `pre' "`gstub'weights`time'`suffix'", replace
             restore
         }
 		
@@ -734,7 +737,7 @@ if length("`graph'")!=0 {
             xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
            `g2_opt' name(g2_`time', replace);
         #delimit cr
-        if `ex'==1 graph export "`gstub'trends`time'`suffix'", replace
+        if `ex'==1 `pre' "`gstub'trends`time'`suffix'", replace 
         restore
     }
 	
@@ -788,7 +791,7 @@ cap program drop _graph_Name
 program define _graph_Name, rclass
     syntax [anything] [, *]
     
-    local valid_X=inlist("`options'", ".ps", ".eps", ".svg", ".wmf", ".emf", ".pdf", ".png", ".tif")
+    local valid_X=inlist("`options'", ".ps", ".eps", ".svg", ".wmf", ".emf", ".pdf", ".png", ".tif", ".gph")
     if (`valid_X'==0) {
         dis as error "When specifying graph export, export format must be a valid type."
         dis as error "Please specify a valid export type (.eps, .ps, .pdf, and so forth)"
@@ -1339,5 +1342,3 @@ mata:
         Yprojected = Y[.,1]-X*Beta
 }
 end
-
-
