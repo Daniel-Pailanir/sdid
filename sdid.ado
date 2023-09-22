@@ -220,8 +220,9 @@ if length("`graph'")!=0&`stringvar'==1 {
     qui keep if `3' == r(min) & `touse'
     keep `groupvar' `2'
     tempfile stateString
+	tempname id_controls
     rename `groupvar' stateName
-    rename `2' state
+    rename `2' `id_controls'
     qui save "`stateString'"
     restore
 }
@@ -293,7 +294,7 @@ if "`jk'"=="1" {
     mata: st_matrix("se_tau",se_tau)
 }
 
-qui count if `3'==`mint'                 //total units
+qui count if `3'==`mint'                //total units
 local N=r(N)
 qui count if `treated'==0 & `3'==`mint' //control units
 local co=r(N)
@@ -429,21 +430,21 @@ else if "`vce'"=="placebo" {
         qui replace `4' = 1 if `3'>=`tyear'
         egen `treated' = max(`4'), by(`2')
 				
-		display in smcl "." _continue
-		if mod(`b',50)==0 dis "     `b'"
+        display in smcl "." _continue
+        if mod(`b',50)==0 dis "     `b'"
 		
-		qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
-		mata: indicator=smerge(psam_id, (ori_id, ori_pos))
-		mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
-		mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-		mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
+        qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
+        mata: indicator=smerge(psam_id, (ori_id, ori_pos))
+        mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
+        mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
+        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
 
-		*taus for adoption times
-		mata: ty = uniqrows(select(data[,7], data[,5]:==1))
-		mata: ty_taus = (ty, st_matrix("tau_i"))
-		mata: tau_p =  (tau_p\ty_taus)
+        *taus for adoption times
+        mata: ty = uniqrows(select(data[,7], data[,5]:==1))
+        mata: ty_taus = (ty, st_matrix("tau_i"))
+        mata: tau_p =  (tau_p\ty_taus)
 							
-		local ++b
+        local ++b
         restore
     }
 	
@@ -561,114 +562,14 @@ di as text "`tablefootnote'"
 *--------------------------------------------------------------------------*
 * (6) Graphing
 *--------------------------------------------------------------------------*
-if length("`graph'")!=0 {
-    if (`co'>1000 & "`g1on'"=="g1on") {
-        local vis "and graphed unit weights are unlikely to be easily visualized."
-        dis "Be careful with graph option. You have a lot of control units `vis'"
-    }
-    qui levelsof `tyear'
-    local trN: word count `r(levels)'
-    mata: timevar=LAMBDA[1::`T',(`trN'+1)]
-    mata: id=OMEGA[1::`co',(`trN'+1)]
-    foreach time of local tryear {
-        preserve
-        mata: weight_lambda_`time'=select(LAMBDA[1::`T',],LAMBDA[rows(LAMBDA),]:==`time')
-        clear
-        getmata weight_lambda_`time' timevar, force
-        ren timevar `3'
-        tempfile lambda_weights_`time'
-        qui save "`lambda_weights_`time''"
-        clear
-        mata: weight_omega_`time'=select(OMEGA[1::`co',],OMEGA[rows(OMEGA),]:==`time')        
-        getmata weight_omega_`time' id, force
-        qui ren id `2'
-        tempfile omega_weights_`time'
-        qui save "`omega_weights_`time''"
-        restore
-    }
-
-    local TAU=1
-    foreach time of local tryear {
-        if "`g1on'"=="g1on" {
-            preserve
-            qui keep if (`tyear'==. | `tyear'==`time') & `touse'
-            qui levelsof `2' if `tyear'==`time', local(tr_unit)
-            qui levelsof `2', local(id2)
-            qui count if `tyear'==`time' & `3'==`time'
-            local Ntr=r(N)
-            qui merge m:1 `3' using "`lambda_weights_`time''", nogen
-
-            mata: Z=J(`N',5,.)
-            local i=1
-            foreach s of local id2 {
-                qui sum `1' if `3'>=`time' & `2'==`s'
-                mata: Z[`i',1]=`r(mean)'
-                local ++i
-            }
-
-            tempvar Y_lambda
-            qui gen `Y_lambda'=`1'*weight_lambda_`time'		
-
-            local i=1
-            foreach s of local id2 {
-                qui sum `Y_lambda' if `3'<`time' & `2'==`s'
-                mata: Z[`i',2]=`r(mean)' * `r(N)'
-                mata: Z[`i',4]=`s'
-                local ++i
-            }
-
-            mata: Z[,3]=Z[,1]-Z[,2]
-            mata: delta_tr=J(1,`Ntr',.)
-            local i=1
-            foreach s of local tr_unit {
-                mata: delta_tr[1,`i']=select(Z[,3],Z[,4]:==`s')
-                local ++i
-            }	
-
-            mata: Z[,5]=J(`N',1,sum(delta_tr)/`Ntr')-Z[,3]
-            clear
-            mata: difference=Z[,5]
-            mata: state=Z[,4]
-            mata: omega=weight_omega_`time'
-            getmata difference state, force
-       
-            local tr_u `tr_u' `tr_unit' 
-            foreach s of local tr_u {
-                qui drop if state==`s'
-            }
-
-            getmata omega, force
-            qui drop if state==.
-            gen order=_n
-            mata: st_local("tau", strofreal(tau[`TAU',]))
-
-            order difference order state
-            local xlabs
-
-            if `stringvar'== 0 {
-                qui levelsof state, local(sgroup)
-                foreach s of local sgroup {
-                    qui sum order if state == `s'
-                    local oN = r(mean)
-                    if r(mean)!= . {
-                        local xlabs `xlabs' `oN' "`s'"
-                    }
-                }
-            }
-            if `stringvar'==1 {
-                qui merge 1:m state using "`stateString'"
-                qui keep if _merge==3
-                qui levelsof stateName, local(sgroup)
-                foreach s of local sgroup {
-                    qui sum order if stateName == `"`s'"'
-                    local oN = r(mean)
-                    if r(mean)!= . {
-                        local xlabs `xlabs' `oN' "`s'"
-                    }
-                }            
-            }
+	
+    if length("`graph'")!=0 {
+	
+        if (`co'>1000 & "`g1on'"=="g1on") {
+            local vis "and graphed unit weights are unlikely to be easily visualized."
+            dis "Be careful with graph option. You have a lot of control units `vis'"
         }
-		
+	
         if length(`"`graph_export'"')!=0 {
             _graph_Name `graph_export'
             local gstub = r(gstub)
@@ -682,89 +583,117 @@ if length("`graph'")!=0 {
             local ex=1
         }
         else local ex=0
-
+	
         if "`g1on'"=="g1on" {
-            if length(`"`msize'"')==0 local ms msize(tiny)
-            else local ms `msize'
-            lab var difference "Difference"
-            lab var order "Group"
-            #delimit ;
-            twoway scatter difference order if omega!=0 [aw=omega], `ms'
-                || scatter difference order if omega==0, m(X) 
-                xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
-                yline(`tau', lc(red)) 
-                `g1_opt' name(g1_`time', replace) legend(off);
-            #delimit cr
-            if `ex'==1 `pre' "`gstub'weights`time'`suffix'", replace
-            restore
-        }
-		
-        local ++TAU
-        
-        preserve
-        qui keep if `touse'
-        qui merge m:1 `2' using "`omega_weights_`time''", nogen		
-        qui keep if `tyear'==. | `tyear'==`time'
-        tempvar Y_omega tipo
-        qui drop if weight_omega_`time'==0
-        qui gen `Y_omega'=`1' if weight_omega_`time'==.
-        qui replace `Y_omega'=`1'*weight_omega_`time' if weight_omega_`time'!=.
-        qui gen `tipo'="Control" if weight_omega_`time'!=.
-        qui replace `tipo'="Treated" if weight_omega_`time'==.
-        keep `2' `3' `Y_omega' `tipo'
-        qui reshape wide `Y_omega', i(`2' `3') j(`tipo') string
-        collapse (sum) `Y_omega'Control (mean) `Y_omega'Treated,  by(`3')
+			tempvar order
+            matrix aux_tau = e(tau)
+            qui svmat dif_plot
+            ren dif_plot1 `id_controls'
+            qui gen `order' = _n if `id_controls'!=.
+			
+            if `stringvar'== 0 {
+                qui levelsof `id_controls', local(sgroup)
+                foreach s of local sgroup {
+                    qui sum `order' if `id_controls'==`s'
+                    local oN = r(mean)
+                    if r(mean)!= . {
+                        local xlabs `xlabs' `oN' "`s'"
+                    }
+                }
+            }
 
-        mata: lambda=weight_lambda_`time'
-        getmata lambda, force
+            if `stringvar'==1 {
+                qui merge m:1 `id_controls' using "`stateString'", keep(1 3) nogen
+                qui levelsof stateName, local(sgroup)
+                foreach s of local sgroup {
+                    qui sum `order' if stateName == `"`s'"'
+                    local oN = r(mean)
+                    if r(mean)!= . {
+                        local xlabs `xlabs' `oN' "`s'"
+                    }
+                }            
+            }
+			
+            local ColDif1 = 2
+            local ColDif2 = 3
+            local aux_tau = 1
+            foreach t of local tryear {
+                tempname Diff`t' Weight`t'
+                ren dif_plot`ColDif1' `Diff`t''
+                ren dif_plot`ColDif2' `Weight`t''
+
+                if length(`"`msize'"')==0 local ms msize(tiny)
+                else local ms `msize'
+                lab var `Diff`t'' "Difference"
+                lab var `order' "Group"		
+                local tau = aux_tau[`aux_tau',1]
+				
+                #delimit ;
+                twoway scatter `Diff`t'' `order' if `Weight`t''!=0 & `id_controls'!=. [aw=`Weight`t''], `ms'
+                    || scatter `Diff`t'' `order' if `Weight`t''==0 & `id_controls'!=., m(X) 
+                    xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
+                    yline(`tau', lc(red))
+                    `g1_opt' name(g1_`t', replace) legend(off);
+                if `ex'==1 `pre' "`gstub'weights`t'`suffix'", replace;
+                #delimit cr
+				
+                local ColDif1 = `ColDif1' + 2
+                local ColDif2 = `ColDif2' + 2
+                local ++aux_tau
+            }
+            if `stringvar'==1 cap drop stateName
+        }
+
+        tempname time lambdadrop
+        matrix auxlambda = e(lambda)
+        qui svmat series
+        ren series1 `time'
+        la var `time' `3'
+        qui svmat auxlambda
+	
+        local ColConTr 
+        local ColConTrDiff 
+        local colcon = 2
+        local coltr  = 3
+        local colaux = 1
+        local colauxfin = 1
+        foreach t of local tryear {
+            tempname Yco`t' Ytr`t' lambda`t'
+            local ColConTr `ColConTr' Yco`t' Ytr`t'
+            local ColConTrDiff `ColConTrDiff' Diff`t'
+            ren series`colcon'    `Yco`t''
+            ren series`coltr'     `Ytr`t''
+            ren auxlambda`colaux' `lambda`t''
+    
+            local tit   "ytitle("Lambda weight", margin(0 0 0 45) axis(2))"
+            local ylab  "ylabel(0(0.25)1, format(%5.1f) axis(2))"
+            local scale "yscale(range(0(1)3) axis(2))"
+            local axis  "yaxis(2) lp(solid)"
+            local timelambda "|| area `lambda`t'' `time' if `time'!=., `axis' `ylab' `scale' `tit'"
+            if "`method'"=="sc" local timelambda 
 		
-        mkmat `Y_omega'Control, matrix(Yco`time')
-        mkmat `Y_omega'Treated, matrix(Ytr`time')
-        mat coln Yco`time' = Yco`time' 
-        mat coln Ytr`time' = Ytr`time' 
-		
-        matrix diff`time' = Ytr`time'-Yco`time'
-        mat coln diff`time' = Diff`time'
-		
-        local timelambda "|| area lambda `3', yaxis(2) lp(solid) ylabel(0(0.25)1, format(%5.1f) axis(2)) yscale(range(0(1)3) axis(2)) ytitle("Lambda weight", margin(0 0 0 45) axis(2))"
-        if "`method'"=="sc" local timelambda 
-		
-        #delimit ;
-        twoway line `Y_omega'Control `3', yaxis(1) lp(dash)
-            || line `Y_omega'Treated `3', yaxis(1) lp(solid)
-    	    `timelambda'
-            || , 
-            xline(`time', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
-           `g2_opt' name(g2_`time', replace);
-        #delimit cr
-        if `ex'==1 `pre' "`gstub'trends`time'`suffix'", replace 
-        restore
+            #delimit ;
+            twoway line `Yco`t'' `time', yaxis(1) lp(dash)
+                || line `Ytr`t'' `time', yaxis(1) lp(solid)
+                `timelambda' ||, 
+            xline(`t', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
+            `g2_opt' name(g2_`t', replace);
+            if `ex'==1 `pre' "`gstub'trends`t'`suffix'", replace;
+            #delimit cr
+
+            local colcon    = `colcon' + 2
+            local coltr     = `coltr'  + 2
+            local colaux    = `colaux' + 1
+            local colauxfin = `colauxfin' + 1
+        }
+        ren auxlambda`colauxfin' `lambdadrop'
+	
+        mat coln series = `3' `ColConTr'
+        mat coln difference = `3' `ColConTrDiff'
+        ereturn matrix series series
+        ereturn matrix difference difference
     }
 	
-    *For save Treated and Control time series
-    mat coln ttime = `3'
-    preserve
-    clear
-    qui svmat ttime, names(col)
-    foreach time of local tryear {
-        qui svmat Yco`time', names(col)
-        qui svmat Ytr`time', names(col)
-    }
-    mkmat _all, matrix(series)
-    restore
-	
-    preserve
-    clear
-    qui svmat ttime, names(col)
-    foreach time of local tryear {
-        qui svmat diff`time', names(col)
-    }
-    mkmat _all, matrix(difference)
-    restore
-	
-	ereturn matrix series series
-    ereturn matrix difference difference
-}
 end
 
 *------------------------------------------------------------------------------*
@@ -836,6 +765,11 @@ mata:
             Beta = J(1, 1, .)
         }
 		
+        //matrix for control, treated and difference series (graph option)
+        Series = J(NT,1,.)
+        Diff = J(NT,1,.)
+        D_plot = J(Nco,1,.)
+		
         //Adjust for controls in xysnth way
         //save original data for jackknife
         data_ori=data
@@ -903,6 +837,8 @@ mata:
             yZetaLambda = EtaLambda*sig_t
             //Generate Y matrices
             ids = uniqrows(ydata[.,2])
+            //ids_trt = uniqrows(select(ydata[.,2], ydata[,7]:==trt[yr]))
+            ids_ctr = uniqrows(select(ydata[.,2], ydata[,7]:==.))
             ytreat = ydata[,7]:==trt[yr]
             ytreat=panelsum(ytreat,yunits)
             ytreat=ytreat/yNT
@@ -1026,6 +962,15 @@ mata:
                 Y=Y-Xbeta
                 tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*(Y)*(-lambda_l, J(1,Npost,1/Npost))'
                 tau_wt[yr] = yNtr*Npost
+				
+                //for line graph
+                Diff = (Diff, ((-lambda_o, J(1,yNtr,1/yNtr))*Y)')
+                Series = (Series, ((lambda_o)*Y0)', ((J(1,yNtr,1/yNtr))*Y1)')
+                //for scatter graph	
+                Npre_min = Npre + 1
+                D = (mean(Y[,Npre_min::cols(Y)]')' - (lambda_l*Y[,1::Npre]')', (J(yNco,1,0)\J(yNtr,1,1)))
+                Daux = mean(select(D[,1], D[,2]:==1))
+                D_plot = (D_plot, ((Daux:-D[,1]), (lambda_o'\J(yNtr,1,.)))[1::yNco,])
             }
 			
             if (controls==0 | controls==1) {
@@ -1048,6 +993,19 @@ mata:
                 }
                 tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(-lambda_l, J(1,Npost,1/Npost))'
                 tau_wt[yr] = yNtr*Npost
+				
+//falta trabajar esto
+//mu = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(lambda_l, J(1,Npost,0))'
+
+                //for line graph
+                Diff = (Diff, ((-lambda_o, J(1,yNtr,1/yNtr))*Y)')
+                Series = (Series, ((lambda_o)*Y0)', ((J(1,yNtr,1/yNtr))*Y1)')
+                //for scatter graph	
+                Npre_min = Npre + 1
+                D = (mean(Y[,Npre_min::cols(Y)]')' - (lambda_l*Y[,1::Npre]')', (J(yNco,1,0)\J(yNtr,1,1)))
+                Daux = mean(select(D[,1], D[,2]:==1))
+                D_plot = (D_plot, ((Daux:-D[,1]), (lambda_o'\J(yNtr,1,.)))[1::yNco,])
+
             }
         }
 		
@@ -1056,6 +1014,9 @@ mata:
             Omega =  (Omega \ (trt', .))
             Lambda = (Lambda, uniqrows(data[,4]))
             Lambda = (Lambda \ (trt', .))
+            Series[,1] = uniqrows(data[,4])
+            Diff[,1] = uniqrows(data[,4])
+            D_plot[,1] = (ids_ctr) 
         }
         if (inference==0 & controls==2) {
             Beta = (Beta \ trt')
@@ -1207,6 +1168,9 @@ mata:
             st_matrix("lambda",Lambda)
             st_matrix("tau"   ,tau)
             st_matrix("beta"  ,Beta)	
+            st_matrix("series",Series)
+            st_matrix("difference",Diff)
+            st_matrix("dif_plot",D_plot)
         }
         if (inference==1 & jk!=1) {
             tau_i = tau
@@ -1347,3 +1311,4 @@ mata:
         Yprojected = Y[.,1]-X*Beta
 }
 end
+
