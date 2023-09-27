@@ -585,7 +585,7 @@ di as text "`tablefootnote'"
         else local ex=0
 	
         if "`g1on'"=="g1on" {
-			tempvar order
+            tempvar order id_controls
             matrix aux_tau = e(tau)
             qui svmat dif_plot
             ren dif_plot1 `id_controls'
