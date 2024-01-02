@@ -36,6 +36,7 @@ version 13.0
     msize(passthru)
     mattitles
     method(string asis)
+    returnweights
     ]
     ;
 #delimit cr  
@@ -506,10 +507,46 @@ if "`mattitles'"!="" {
         local rn `rn' "Adoption Time"
         matrix rownames omega = `rn'
 }
+
+if length("`returnweights'")!=0 {
+    preserve
+    clear 
+    qui svmat lambda, n(col)
+
+    local i=1
+    foreach t of local tryear {
+	    ren c`i' lambda`t'
+        local ++i
+    }
+    ren c `3'
+    tempfile dlambda
+    save `dlambda'
+    restore
+
+    qui merge m:1 `3' using `dlambda', nogen keep(1 3)
+
+    preserve
+    clear 
+    qui svmat omega, n(col)
+
+    local i=1
+    foreach t of local tryear {
+	    ren c`i' omega`t'
+        local ++i
+    }
+    ren c `2'
+    tempfile domega
+    save `domega'
+    restore
+
+    qui merge m:1 `2' using `domega', nogen keep(1 3)
+}
+
 ereturn matrix tau      tau
 ereturn matrix lambda   lambda
 ereturn matrix omega    omega
 ereturn matrix adoption adoption
+
 
 if "`covariates'"!="" {
     if "`control_opt'"=="1" matrix rownames beta = `contname'
@@ -544,7 +581,6 @@ if ("`method'"=="sc") {
     local tabletitle "Synthetic Control"
     local tablefootnote
 }
-
 
 
 di as text ""
