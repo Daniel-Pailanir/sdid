@@ -214,6 +214,7 @@ if (length("`if'")+length("`in'")>0) {
     restore
 }
 
+tempname id_controls
 if length("`graph'")!=0&`stringvar'==1 {
     preserve
     qui sum `3' if `touse'
@@ -221,7 +222,6 @@ if length("`graph'")!=0&`stringvar'==1 {
     qui keep if `3' == r(min) & `touse'
     keep `groupvar' `2'
     tempfile stateString
-	tempname id_controls
     rename `groupvar' stateName
     rename `2' `id_controls'
     qui save "`stateString'"
@@ -284,9 +284,9 @@ if "`method'"=="sc"   local m=3
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
 mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
-
-mata: OMEGA  = st_matrix("omega")
 mata: LAMBDA = st_matrix("lambda")
+mata: OMEGA  = st_matrix("omega")
+
 mata: tau    = st_matrix("tau") 
 mata: st_local("ATT", strofreal(ATT))
 
@@ -323,7 +323,6 @@ foreach l of local tryear {
     matrix adoption[`jj',1]=`l'
     local ++jj
 }
-
 
 if (length("`if'")+length("`in'")>0) {
     restore
@@ -598,14 +597,45 @@ di as text "`tablefootnote'"
 *--------------------------------------------------------------------------*
 * (6) Graphing
 *--------------------------------------------------------------------------*
+    tempname time lambdadrop
+    matrix auxlambda = e(lambda)
+    qui svmat series
+    ren series1 `time'
+    la var `time' `3'
+    qui svmat auxlambda
+	
+    local ColConTr 
+    local ColConTrDiff 
+    local colcon = 2
+    local coltr  = 3
+    local colaux = 1
+    local colauxfin = 1
+    foreach t of local tryear {
+        tempname Yco`t' Ytr`t' lambda`t'
+        local ColConTr `ColConTr' Yco`t' Ytr`t'
+        local ColConTrDiff `ColConTrDiff' Diff`t'
+        ren series`colcon'    `Yco`t''
+        ren series`coltr'     `Ytr`t''
+        ren auxlambda`colaux' `lambda`t''
+
+        local colcon    = `colcon' + 2
+        local coltr     = `coltr'  + 2
+        local colaux    = `colaux' + 1
+        local colauxfin = `colauxfin' + 1
+    }	
+    ren auxlambda`colauxfin' `lambdadrop'	
+	
+    mat coln series = `3' `ColConTr'
+    mat coln difference = `3' `ColConTrDiff'
+    ereturn matrix series series
+    ereturn matrix difference difference
 	
     if length("`graph'")!=0 {
-	
         if (`co'>1000 & "`g1on'"=="g1on") {
             local vis "and graphed unit weights are unlikely to be easily visualized."
             dis "Be careful with graph option. You have a lot of control units `vis'"
         }
-	
+
         if length(`"`graph_export'"')!=0 {
             _graph_Name `graph_export'
             local gstub = r(gstub)
@@ -619,9 +649,9 @@ di as text "`tablefootnote'"
             local ex=1
         }
         else local ex=0
-	
+
         if "`g1on'"=="g1on" {
-			tempvar order
+            tempvar order
             matrix aux_tau = e(tau)
             qui svmat dif_plot
             ren dif_plot1 `id_controls'
@@ -641,6 +671,7 @@ di as text "`tablefootnote'"
             if `stringvar'==1 {
                 qui merge m:1 `id_controls' using "`stateString'", keep(1 3) nogen
                 qui levelsof stateName, local(sgroup)
+
                 foreach s of local sgroup {
                     qui sum `order' if stateName == `"`s'"'
                     local oN = r(mean)
@@ -649,7 +680,7 @@ di as text "`tablefootnote'"
                     }
                 }            
             }
-			
+
             local ColDif1 = 2
             local ColDif2 = 3
             local aux_tau = 1
@@ -680,27 +711,7 @@ di as text "`tablefootnote'"
             if `stringvar'==1 cap drop stateName
         }
 
-        tempname time lambdadrop
-        matrix auxlambda = e(lambda)
-        qui svmat series
-        ren series1 `time'
-        la var `time' `3'
-        qui svmat auxlambda
-	
-        local ColConTr 
-        local ColConTrDiff 
-        local colcon = 2
-        local coltr  = 3
-        local colaux = 1
-        local colauxfin = 1
         foreach t of local tryear {
-            tempname Yco`t' Ytr`t' lambda`t'
-            local ColConTr `ColConTr' Yco`t' Ytr`t'
-            local ColConTrDiff `ColConTrDiff' Diff`t'
-            ren series`colcon'    `Yco`t''
-            ren series`coltr'     `Ytr`t''
-            ren auxlambda`colaux' `lambda`t''
-    
             local tit   "ytitle("Lambda weight", margin(0 0 0 45) axis(2))"
             local ylab  "ylabel(0(0.25)1, format(%5.1f) axis(2))"
             local scale "yscale(range(0(1)3) axis(2))"
@@ -716,18 +727,7 @@ di as text "`tablefootnote'"
             `g2_opt' name(g2_`t', replace);
             if `ex'==1 `pre' "`gstub'trends`t'`suffix'", replace;
             #delimit cr
-
-            local colcon    = `colcon' + 2
-            local coltr     = `coltr'  + 2
-            local colaux    = `colaux' + 1
-            local colauxfin = `colauxfin' + 1
         }
-        ren auxlambda`colauxfin' `lambdadrop'
-	
-        mat coln series = `3' `ColConTr'
-        mat coln difference = `3' `ColConTrDiff'
-        ereturn matrix series series
-        ereturn matrix difference difference
     }
 	
 end
@@ -1347,4 +1347,3 @@ mata:
         Yprojected = Y[.,1]-X*Beta
 }
 end
-
