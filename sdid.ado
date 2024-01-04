@@ -37,6 +37,7 @@ version 13.0
     mattitles
     method(string asis)
     returnweights
+    generate(string asis)
     ]
     ;
 #delimit cr  
@@ -511,15 +512,25 @@ if length("`returnweights'")!=0 {
     preserve
     clear 
     qui svmat lambda, n(col)
-
+	
     local i=1
     foreach t of local tryear {
-	    ren c`i' lambda`t'
+	    ren c`i' `generate'lambda`t'
+        if (`m'==1 | `m'==2) {
+            qui count if `generate'lambda`t'==.
+            qui replace `generate'lambda`t' = 1/r(N) if `generate'lambda`t'==.
+        }
+        else {
+            qui count if `generate'lambda`t'==0
+            qui replace `generate'lambda`t' = 1/r(N) if `generate'lambda`t'==0
+            qui count if `generate'lambda`t'==.
+            qui replace `generate'lambda`t' = 1/r(N) if `generate'lambda`t'==.
+        }
         local ++i
     }
     ren c `3'
     tempfile dlambda
-    save `dlambda'
+    qui save `dlambda'
     restore
 
     qui merge m:1 `3' using `dlambda', nogen keep(1 3)
@@ -527,18 +538,25 @@ if length("`returnweights'")!=0 {
     preserve
     clear 
     qui svmat omega, n(col)
-
+	
     local i=1
     foreach t of local tryear {
-	    ren c`i' omega`t'
+	    ren c`i' `generate'omega`t'
         local ++i
     }
     ren c `2'
     tempfile domega
-    save `domega'
+    qui save `domega'
     restore
 
     qui merge m:1 `2' using `domega', nogen keep(1 3)
+	
+    local i=1
+    foreach t of local tryear {
+        qui replace `generate'omega`t' = 1/trunitN[`i',1] if `generate'omega`t'==.
+        local ++i
+    }
+	
 }
 
 ereturn matrix tau      tau
@@ -821,6 +839,9 @@ mata:
         tau    = J(rows(trt),1,.)
         tau_wt = J(1,rows(trt),.)
 		
+        //Treated unit vector
+        trunitN = J(rows(trt),1,.)
+		
         if (inference==0) {
             Omega = J(Nco, rows(trt),.)
             Lambda = J(NT, rows(trt),.)
@@ -840,6 +861,7 @@ mata:
             yNG = panelstats(yunits)[,1]
             yN  = panelstats(yunits)[,2]
             yNtr = yNtr/yNT
+            trunitN[yr] = yNtr 
             yNco = yNco/yNT
             yTpost = max(ydata[,4])-trt[yr]+1
             pretreat = select(uniqrows(data[,4]),uniqrows(data[,4]):<trt[yr])
@@ -1207,6 +1229,7 @@ mata:
             st_matrix("series",Series)
             st_matrix("difference",Diff)
             st_matrix("dif_plot",D_plot)
+            st_matrix("trunitN",trunitN)
         }
         if (inference==1 & jk!=1) {
             tau_i = tau
