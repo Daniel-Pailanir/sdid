@@ -589,7 +589,8 @@ ereturn local vce      "`vce'"
 ereturn local title    "Synthetic Difference-in-Differences"
 ereturn local cmd      "sdid"
 
-if c(level)!=95 local level = c(level)
+di `c(level)'
+if `c(level)'!=95 local level = c(level)
 local t=`ATT'/`se'
 local pval= 2 * (1-normal(abs(`ATT'/`se')))
 local v = (1-`level'/100)/2
