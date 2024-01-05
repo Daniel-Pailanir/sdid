@@ -38,6 +38,7 @@ version 13.0
     method(string asis)
     returnweights
     generate(string asis)
+    verbose
     ]
     ;
 #delimit cr  
@@ -289,16 +290,19 @@ mata: LAMBDA = st_matrix("lambda")
 mata: OMEGA  = st_matrix("omega")
 
 *Warning for reached maximun number of iteration
-if (`m'==1) {
-    if `reached_lambda'==1 {
-        local reached_l "Maximun number of iterations (`max_iter') reached for lambda weight calculation"
+if (length("`verbose'")>0) {
+    if (`m'==1) {
+        if `reached_lambda'==1 {
+            local reached_l "Maximum number of iterations (`max_iter') reached for lambda weight calculation"
+        }
+    }
+    if (`m'==1 | `m'==3) {
+        if `reached_omega'==1 {
+            local reached_o "Maximum number of iterations (`max_iter') reached for omega weight calculation"
+        }
     }
 }
-if (`m'==1 | `m'==3) {
-    if `reached_omega'==1 {
-        local reached_o "Maximun number of iterations (`max_iter') reached for omega weight calculation"
-    }
-}
+
 mata: tau    = st_matrix("tau") 
 mata: st_local("ATT", strofreal(ATT))
 
@@ -623,8 +627,8 @@ di as text %12s abbrev("`4'",12) " {c |} " as result %9.5f `ATT' "  " %9.5f `se'
 di as text "{hline 13}{c BT}{hline 63}"
 di as text "95% CIs and p-values are based on Large-Sample approximations."
 di as text "`tablefootnote'" 
-di as text "`reached_l'"
-di as text "`reached_o'"
+if (length("`verbose'")>0) di as text "`reached_l'"
+if (length("`verbose'")>0) di as text "`reached_o'"
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
