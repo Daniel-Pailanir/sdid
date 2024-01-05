@@ -26,7 +26,7 @@ version 13.0
     zeta_omega(real 1e-6)
     min_dec(real 1e-5)
     max_iter(real 1e4)
-    level(integer 95)
+    level(integer c(level))
     graph
     g1on
     g1_opt(string asis)
