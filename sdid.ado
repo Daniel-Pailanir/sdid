@@ -288,6 +288,17 @@ mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m', `zeta_lambda', `ze
 mata: LAMBDA = st_matrix("lambda")
 mata: OMEGA  = st_matrix("omega")
 
+*Warning for reached maximun number of iteration
+if (`m'==1) {
+    if `reached_lambda'==1 {
+        local reached_l "Maximun number of iterations (`max_iter') reached for lambda weight calculation"
+    }
+}
+if (`m'==1 | `m'==3) {
+    if `reached_omega'==1 {
+        local reached_o "Maximun number of iterations (`max_iter') reached for omega weight calculation"
+    }
+}
 mata: tau    = st_matrix("tau") 
 mata: st_local("ATT", strofreal(ATT))
 
@@ -611,6 +622,8 @@ di as text %12s abbrev("`4'",12) " {c |} " as result %9.5f `ATT' "  " %9.5f `se'
 di as text "{hline 13}{c BT}{hline 63}"
 di as text "95% CIs and p-values are based on Large-Sample approximations."
 di as text "`tablefootnote'" 
+di as text "`reached_l'"
+di as text "`reached_o'"
 
 *--------------------------------------------------------------------------*
 * (6) Graphing
@@ -1037,13 +1050,15 @@ mata:
                     eta_o = Npre*yZetaOmega^2
                     eta_l = yNco*yZetaLambda^2
                     if (mt==1) {
-                        lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec)
+                        lambda_l = lambda(A_l,b_l,lambda_l,eta_l,yZetaLambda,100,mindec,0)
                         lambda_l = sspar(lambda_l)
-                        lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, MaxIter,mindec)
+                        lambda_l = lambda(A_l, b_l, lambda_l,eta_l,yZetaLambda, MaxIter,mindec,1)
+                        st_local("reached_lambda", st_local("reached"))
                     }
-                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec)
+                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, 100,mindec,0)
                     lambda_o = sspar(lambda_o)
-                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, MaxIter,mindec)
+                    lambda_o = lambda(A_o, b_o, lambda_o,eta_o,yZetaOmega, MaxIter,mindec,1)
+                    st_local("reached_omega", st_local("reached"))
                 }
                 if (inference==0) {
                     Lambda[.,yr] =  (lambda_l' \ J(Npost,1,.))
@@ -1052,8 +1067,7 @@ mata:
                 tau[yr] = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(-lambda_l, J(1,Npost,1/Npost))'
                 tau_wt[yr] = yNtr*Npost
 				
-//falta trabajar esto
-//mu = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(lambda_l, J(1,Npost,0))'
+                //mu = (-lambda_o, J(1,yNtr,1/yNtr))*Y*(lambda_l, J(1,Npost,0))'
 
                 //for line graph
                 Diff = (Diff, ((-lambda_o, J(1,yNtr,1/yNtr))*Y)')
@@ -1241,7 +1255,7 @@ end
   
 *minimization
 mata:
-real vector lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease) {    
+real vector lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease, rev) {    
     row = rows(A)
     col = cols(A)
     vals = J(1, maxIter, .)
@@ -1250,6 +1264,15 @@ real vector lambda(matrix A, matrix b, matrix x, eta, zeta, maxIter, mindecrease
     
     while (t<maxIter & (t<2 | dd>mindecrease)) {
         t++
+        if (rev==1) {
+            if (t==maxIter) {
+                st_local("reached", strofreal(1))
+            }
+            else {
+                st_local("reached", strofreal(0))
+            }
+        }
+		
         Ax = A * x'	
         hg = (Ax - b)' * A + eta * x
         i = select((1..cols(hg)), colmin(hg :== min(hg)))[1,1]
@@ -1370,3 +1393,4 @@ mata:
         Yprojected = Y[.,1]-X*Beta
 }
 end
+
