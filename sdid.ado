@@ -26,7 +26,7 @@ version 13.0
     zeta_omega(real 1e-6)
     min_dec(real 1e-5)
     max_iter(real 1e4)
-    level(integer `c(level)')
+    level(integer 95)
     graph
     g1on
     g1_opt(string asis)
@@ -589,6 +589,7 @@ ereturn local vce      "`vce'"
 ereturn local title    "Synthetic Difference-in-Differences"
 ereturn local cmd      "sdid"
 
+if c(level)!=95 local level = c(level)
 local t=`ATT'/`se'
 local pval= 2 * (1-normal(abs(`ATT'/`se')))
 local v = (1-`level'/100)/2
