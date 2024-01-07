@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 2.0.0 February 23, 2024}
+{* *! version 2.0.0 January, 2024}
 {title:Title}
 
 {p 4 4 2}
@@ -21,6 +21,10 @@ Optional {it:type} can be specified, as either "optimized" (the default) or "pro
 {synopt :{opt reps}({it:#})} repetitions for bootstrap and placebo inference.{p_end}
 {synopt :{opt method(type)}} Allows for an estimation method to be requested.  {it: type} can be "sdid" (which is estimated by default), "did" (for standard difference-in-differencs) or "sc" (for standard synthetic control).{p_end}
 {synopt :{opt zeta_lambda}({it:#})} Allows for control of the regularisation parameter (zeta) defined in {help sdid##SDID2021:Arkhangelsky et al. (2021, equation 5)}.  If not specified, default values described in  {help sdid##SDID2021:Arkhangelsky et al. (2021)} are used.{p_end}
+{synopt :{opt zeta_omega}({it:#})} Allows for control of the regularisation parameter (zeta) defined in {help sdid##SDID2021:Arkhangelsky et al. (2021)}.  If not specified, default values described in  {help sdid##SDID2021:Arkhangelsky et al. (2021)} are used.{p_end}
+{synopt :{opt min_dec}({it:#})} Estimation of optimal weights occurs iteratively until a sequential stopping rule is met. By default, a minimum is assumed when consecutive iterations move by no more than the value indicated in min_dec.{p_end}
+{synopt :{opt max_iter}({it:#})} Defines the maximum number of iterations to be performed when calculating optimal weights. By default, a maximum of 10,000 iterations will be performed.{p_end}
+{synopt :{opt level}({it:#})} specifies the confidence level, as a percentage, for confidence intervals. The default is the level set by set level (which by default is level(95)).{p_end}
 {synopt :{opt graph}} if this option is specified, graphs will be displayed in the style of figure 1 from {help sdid##SDID2021:Arkhangelsky et al. (2021)}.{p_end}
 {synopt :{opt g1on}} If graphing is requested, this option activates the unit-specific weight graph.{p_end}
 {synopt :{opt g1_opt}({it:{help twoway_options:graph options}})} option to modify the appearance of the unit-specific weight graph.{p_end}
@@ -31,6 +35,9 @@ Optional {it:type} can be specified, as either "optimized" (the default) or "pro
 unless the unstandardized option is specified.{p_end}
 {synopt :{opt mattitles}} Requests that weights returned in matrices are accompanied by the name
 of the groupvar corresponding to each weight.{p_end}
+{synopt :{opt verbose}} Requests additional output, such as warnings messages if the number of iterations indicated in max_iter is reached.{p_end}
+{synopt :{opt returnweights}} Indicates that estimated weights omega and lambda should be returned directly in the dataset corresponding to each unit.{p_end}
+{synopt :{opt generate}({it:string})} Specifies that the variables containing omega and lambda weights returned if the returnweights option is indicated should be named starting with string.{p_end}
 {pstd}
 {p_end}
 {synoptline}
@@ -122,15 +129,36 @@ inclusion of redundant covariates.
 {pstd}
 {p_end}
 {phang}
-{opt dseta}({it:#}) By default, a regularisation parameter defined in Arkhangelsky et al. (2021) is used to ensure that unit weights and time weights are more dispersed, and to ensure uniqueness.
-By default, this parameter is calculated as described in {help sdid##SDID2021:Arkhangelsky et al. (2021)} equation 5 and footnote 3.  However, if desired, a user-provided value can be used, as indicated in dseta.
+{opt method}({it:type}) this option allows for alternative estimation methods to be performed.  Allowed {it:type}s are "sdid" (synthetic difference-in-differences)
+"did (standard difference-in-differences) or "sc" (standard synthetic control).  
+If this option is not included, sdid is assumed by default.
 
 {pstd}
 {p_end}
 {phang}
-{opt method}({it:type}) this option allows for alternative estimation methods to be performed.  Allowed {it:type}s are "sdid" (synthetic difference-in-differences)
-"did (standard difference-in-differences) or "sc" (standard synthetic control).  
-If this option is not included, sdid is assumed by default.
+{opt zeta_lambda}({it:#}) Value used when defining the regularization term for time weight calculations. This value is the scalar prior to the sigma term used to calculate zeta. Default is 1e-6. This is only relevant when method(sdid) is used, as otherwise time weights are equally set.
+
+{pstd}
+{p_end}
+{phang}
+{opt zeta_omega}({it:#}) Value used when defining the regularization term for unit weight calculations. This value is the quantity prior to the ̂ σ term used to calculate zeta defined in {help sdid##SDID2021:Arkhangelsky et al. (2021, equation 5)}).
+Default is (N_tr*T_post)^1/4. For other methods, default value is 1e-6.
+
+
+{pstd}
+{p_end}
+{phang}
+{opt min_dec}({it:#}) Estimation of optimal weights occurs iteratively until a sequential stopping rule is met. By default, a minimum is assumed when consecutive iterations move by no more than the value indicated in min dec. By default, this value is set at 1e-5.
+
+{pstd}
+{p_end}
+{phang}
+{opt max_iter}({it:#}) Defines the maximum number of iterations to be performed when calculating optimal weights. By default, a maximum of 10,000 iterations will be performed. Larger values can be set to ensure that a minimum is reached.
+
+{pstd}
+{p_end}
+{phang}
+{opt level}({it:#}) specifies the confidence level, as a percentage, for confidence intervals. The default is the level set by set level (which by default is level(95)).
 
 {pstd}
 {p_end}
@@ -184,6 +212,21 @@ order based on the unit variable, if this variable is in string format.
 
 {pstd}
 {p_end}
+{phang}
+{opt verbose} Requests additional output, such as warnings messages if the number of iterations indicated in max_iter is reached.
+
+{pstd}
+{p_end}
+{phang}
+{opt returnweights} Indicates that estimated weights omega and lambda should be returned directly in the dataset corresponding to each unit. By defaul, these will be returned as variables named omegaYYYY and lambdaYYYY where YYYY is replaced by treatment adoption years.
+
+{pstd}
+{p_end}
+{phang}
+{opt generate}({it:string}) Specifies that the variables containing omega and lambda weights returned if the returnweights option is indicated should be named starting with string. If returnweights is indicated by generate is not indicated, variables will simply follow default naming.
+
+{pstd}
+{p_end}
 
 
 {title:Stored results}
@@ -194,12 +237,12 @@ order based on the unit variable, if this variable is in string format.
 
 {synoptset 20 tabbed}{...}
 {p2col 5 20 24 2: Scalars}{p_end}
-{synopt:{cmd:e(ATT)}}ATT {p_end}
-{synopt:{cmd:e(se)}}Standard error {p_end}
-{synopt:{cmd:e(ATT_l)}}ATT left CI {p_end}
-{synopt:{cmd:e(ATT_r)}}ATT right CI {p_end}
+{synopt:{cmd:e(ATT)}}Average Treatment Effect on the Treated {p_end}
+{synopt:{cmd:e(ATT_l)}}Left-hand point of confidence interval on ATT (based on level()) {p_end}
+{synopt:{cmd:e(ATT_r)}}Right-hand point of confidence interval on ATT (based on level()) {p_end}
+{synopt:{cmd:e(se)}}Standard error for the ATT {p_end}
 {synopt:{cmd:e(reps)}}Number of bootstrap/placebo replications {p_end}
-{synopt:{cmd:e(N_clust)}}Number of clusters {p_end}
+{synopt:{cmd:e(N_clust)}}Number of units (groups) used in the original panel used for {cmd:sdid} {p_end}
 
 
 {synoptset 20 tabbed}{...}
@@ -216,10 +259,15 @@ order based on the unit variable, if this variable is in string format.
 {synopt:{cmd:e(tau)}}tau estimator for each adoption time-period, along with its standard error{p_end}
 {synopt:{cmd:e(lambda)}}lambda weights (time-specific weights){p_end}
 {synopt:{cmd:e(omega)}}omega weights (unit-specific weights){p_end}
-{synopt:{cmd:e(adoption)}}adoption times{p_end}
-{synopt:{cmd:e(beta)}}beta vector of corresponding to covariates (only returned when the covariates option is indicated){p_end}
-{synopt:{cmd:e(series)}}control and treatment series of the graphs (only returned when the graph option is indicated) {p_end}
-{synopt:{cmd:e(difference)}}difference between treatment and control series (only returned when the graph option is indicated){p_end}
+{synopt:{cmd:e(adoption)}}A vector containing the list of all treatment adoption times{p_end}
+{synopt:{cmd:e(beta)}}A vector corresponding to coefficients estimated on covariates included as control (only retuned if the covariates option is used){p_end}
+{synopt:{cmd:e(series)}}control and treatment series containing time series trends of outcome means over time{p_end}
+{synopt:{cmd:e(difference)}}difference between treatment and control series over time{p_end}
+{synopt:{cmd:e(b)}}coefficient estimate returned for ATT{p_end}
+{synopt:{cmd:e(V)}}variance estimate returned for ATT{p_end}
+
+{pstd}
+The matrices {cmd:e(b)} and {cmd:e(V)} are included to facilite the exportation of results from {cmd:sdid} with routines such as estout.
 
 {pstd}
 {p_end}
