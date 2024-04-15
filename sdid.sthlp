@@ -40,6 +40,10 @@ of the groupvar corresponding to each weight.{p_end}
 {synopt :{opt verbose}} Requests additional output, such as warnings messages if the number of iterations indicated in max_iter is reached.{p_end}
 {synopt :{opt returnweights}} Indicates that estimated weights omega and lambda should be returned directly in the dataset corresponding to each unit.{p_end}
 {synopt :{opt generate}({it:string})} Specifies that the variables containing omega and lambda weights returned if the returnweights option is indicated should be named starting with the specified {it:string}.{p_end}
+{synopt :{opt xline_opts}({it:string})} Allows for options to be passed to the vertical line displayed on the trend plot(s) displaying the beginning of treatment.{p_end}
+{pstd}
+{p_end}
+{synopt :{opt yline_opts}({it:string})} Allows for options to be passed to the horizontal line displayed on the weight plot(s) displaying the mean treatment effect.{p_end}
 {pstd}
 {p_end}
 {synoptline}
@@ -231,6 +235,18 @@ order based on the unit variable, if this variable is in string format.
 {phang}
 {opt generate}({it:string}) Specifies that the variables containing omega and lambda weights returned if the returnweights option is indicated should be named starting with {it:string}. 
  If returnweights is indicated but generate is not indicated, variables will simply follow default naming.
+
+{pstd}
+{p_end}
+{phang}
+{opt xline_opts}({it:string}) Allows for options to be passed to the vertical line which displays the beginning of treatment on the outcome trend graph(s).
+These will be passed to {it:xline()} internally, and hence any valid options accepted by  {it:{help added_line_options:added line options}} such as line colors and line styles are permitted.
+
+{pstd}
+{p_end}
+{phang}
+{opt yline_opts}({it:string}) Allows for options to be passed to the horizontal line which displays the bemean treatment effect on each of the weight graph(s).
+These will be passed to {it:yline()} internally, and hence any valid options accepted by  {it:{help added_line_options:added line options}} such as line colors and line styles are permitted.
 
 {pstd}
 {p_end}
