@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 2.0.0 February 24, 2023
+*! Version 2.0.1 April 15, 2023
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
@@ -735,7 +735,7 @@ if (length("`verbose'")>0) di as text "`reached_o'"
                 twoway scatter `Diff`t'' `order' if `Weight`t''!=0 & `id_controls'!=. [aw=`Weight`t''], `ms'
                     || scatter `Diff`t'' `order' if `Weight`t''==0 & `id_controls'!=., m(X) 
                     xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
-                    yline(`tau', lc(red))
+                    yline(`tau')
                     `g1_opt' name(g1_`t', replace) legend(off);
                 if `ex'==1 `pre' "`gstub'weights`t'`suffix'", replace;
                 #delimit cr
