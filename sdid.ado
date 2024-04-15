@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 2.0.0 February 24, 2023
+*! Version 2.0.1 April 15, 2023
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
@@ -39,6 +39,8 @@ version 13.0
     returnweights
     generate(string asis)
     verbose
+    XLINE_opts(string asis)
+    YLINE_opts(string asis)
     ]
     ;
 #delimit cr  
@@ -735,7 +737,7 @@ if (length("`verbose'")>0) di as text "`reached_o'"
                 twoway scatter `Diff`t'' `order' if `Weight`t''!=0 & `id_controls'!=. [aw=`Weight`t''], `ms'
                     || scatter `Diff`t'' `order' if `Weight`t''==0 & `id_controls'!=., m(X) 
                     xlabel(`xlabs', angle(vertical) labs(vsmall) valuelabel)
-                    yline(`tau', lc(red))
+                    yline(`tau', `yline_opts')
                     `g1_opt' name(g1_`t', replace) legend(off);
                 if `ex'==1 `pre' "`gstub'weights`t'`suffix'", replace;
                 #delimit cr
@@ -759,7 +761,8 @@ if (length("`verbose'")>0) di as text "`reached_o'"
             twoway line `Yco`t'' `time', yaxis(1) lp(dash)
                 || line `Ytr`t'' `time', yaxis(1) lp(solid)
                 `timelambda' ||, 
-            xline(`t', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
+            xline(`t', `xline_opts')
+            legend(order(1 "Control" 2 "Treated") pos(12) col(2))
             `g2_opt' name(g2_`t', replace);
             if `ex'==1 `pre' "`gstub'trends`t'`suffix'", replace;
             #delimit cr
