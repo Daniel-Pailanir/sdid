@@ -759,7 +759,7 @@ if (length("`verbose'")>0) di as text "`reached_o'"
             twoway line `Yco`t'' `time', yaxis(1) lp(dash)
                 || line `Ytr`t'' `time', yaxis(1) lp(solid)
                 `timelambda' ||, 
-            xline(`t', lc(red)) legend(order(1 "Control" 2 "Treated") pos(12) col(2))
+            xline(`t') legend(order(1 "Control" 2 "Treated") pos(12) col(2))
             `g2_opt' name(g2_`t', replace);
             if `ex'==1 `pre' "`gstub'trends`t'`suffix'", replace;
             #delimit cr
