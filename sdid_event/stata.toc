@@ -1,0 +1,14 @@
+v 1.0.0
+d Main software (sdid):
+d Daniel Pailañir and Damian Clarke
+d dpailanir@fen.uchile.cl - dclarke@fen.uchile.cl
+d https://github.com/Daniel-Pailanir/sdid
+d
+d Event Study plugin (sdid_event):
+d Diego Ciccia
+d diego.ciccia@kellogg.northwestern.edu
+d https://github.com/DiegoCiccia/sdid/main/sdid_event
+
+d 'sdid_event': Event Study Estimators for Synthetic Difference in Differences
+
+p sdid_event
