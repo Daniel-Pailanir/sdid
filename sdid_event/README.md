@@ -11,6 +11,8 @@ net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid
 
 # Example
 
+DGP with time-varying treatment effect:
+
 ```stata
 clear
 local GG = 19
@@ -18,10 +20,8 @@ local TT = 20
 set seed 0
 set obs `=`GG' * `TT''
 
-qui do "sdid_event.ado"
 gen G = mod(_n-1,`GG') + 1
 bys G: gen T = _n
-
 gen D = T > mod(G, 4) + 1 & G >= `GG'/4
 gen Y = uniform() * (1 + D + 10*D*T)
 ```
