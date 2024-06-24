@@ -2,13 +2,13 @@
 
 A Stata module to implement event study analysis with `sdid`.
 
-# Setup
+## Setup
 
 ```stata
 net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid/main/sdid_event") replace
 ```
 
-# Adapting `sdid` to event study analysis
+## Adapting `sdid` to event study analysis
 
 In what follows, I use the notation from Clark et al. (2023) to present the estimation procedure for event-study Synthetic Difference-in-Differences (SDID) estimators.
 In a setting with $G$ groups observed over $T$ periods, $N_{tr} < G$ groups receive treatment $D$ starting from period $1 < a \leq T$, henceforth called *cohort* or adoption period.
@@ -18,6 +18,8 @@ The values of $a$ are collected in $A$, i.e. the adoption date vector.
 For the sake of generality, we assume that $|A| > 1$, meaning that groups start receiving the treatment at different periods.
 The case with no differential timing can be simply retrieved by considering one cohort at a time.
 The number of periods from the the onset of the treatment to end of the panel is denoted as $T^{a}_{post}$ and it is cohort-specific.
+
+### Disaggregating $\tau^{sdid}_a$
 
 The cohort-specific SDID estimator from Arkhangelsky et al. (2019) can be rearranged as follows:
 
@@ -40,6 +42,7 @@ This estimator is very similar to those suggested by Borusyak et al. (2021), Liu
 ```
 
 
+### Aggregating $\tau^{sdid}_{a,\ell}$ into event-study estimates
 
 
 
@@ -49,7 +52,9 @@ This estimator is very similar to those suggested by Borusyak et al. (2021), Liu
 
 
 
-# Example
+
+
+## Example
 
 DGP with time-varying treatment effect:
 
