@@ -20,9 +20,11 @@ The case with no differential timing can be simply retrieved by considering one 
 The number of periods from the the onset of the treatment to end of the panel is denoted as $T^{a}_{post}$ and it is cohort-specific.
 
 The cohort-specific SDID estimator from Arkhangelsky et al. (2019) can be rearranged as follows:
+
 $$
 \tau^{sdid}_a = \frac{1}{T^a_{post}} \sum_{t = a}^T \left( \frac{1}{N_{tr}} \sum_{i = N_{co} + 1}^N Y_{i,t} - \sum_{i = 1}^{N_{co}} \omega_i Y_{i,t}\right) -  \sum_{t = 1}^{a-1} \left( \frac{1}{N_{tr}} \sum_{i = N_{co} + 1}^N \lambda_t Y_{i,t} - \sum_{i = 1}^{N_{co}}\omega_i \lambda_t  Y_{i,t}\right)
 $$
+
 where $\lambda_t$ and $\omega_i$ are the optimal weights chosen to best approximate the pre-treatment outcome evolution of treated and (synthetic) control units.
 $\tau^{sdid}_a$ compares the average outcome difference of treated in the $a$ cohort and controls before and after the onset of the treatment.
 In doing so, $\tau^{sdid}_a$ encompasses all the post-treatment periods.
