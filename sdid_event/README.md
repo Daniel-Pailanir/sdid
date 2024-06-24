@@ -42,7 +42,15 @@ This estimator is very similar to those suggested by Borusyak et al. (2021), Liu
 ```
 
 
-### Aggregating $\tau^{sdid}_{a,\ell}$ into event-study estimates
+### Aggregating $\tau^{sdid}_{a,\ell}$s into event-study estimates
+
+Let $N^a_{tr}$ be the number of treated groups that start their treatment in period $a$. Let $A_{\ell}$ be the subset of cohorts in $A$ such that  $a - 1 + \ell \leq T$, i.e. such that their $\ell$-th dynamic effect can be computed. Lastly, let $N^{\ell}_{tr} = \sum_{a \in A_{\ell}} N^a_{tr}$ denote the number of groups in cohorts that are encompassed in the estimation of the $\ell$ dynamic effect. By definition, $N^{1}_{tr} = \sum_{a \in A} N^a_{tr} = N_{tr}$. Let
+
+```math
+\tau^{sdid}_\ell = \frac{1}{N_{tr}} \sum_{a \in A_{\ell}} \frac{N^a_{tr}}{N^{\ell}_{tr}} \tau^{sdid}_\ell
+```
+
+denote the weighted sum of the cohort-specific treatment effects $\ell$ periods after the onset of the treatment, with weights corresponding to the relative number of groups participating into each cohort.
 
 
 
