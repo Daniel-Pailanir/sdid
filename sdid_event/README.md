@@ -42,9 +42,15 @@ This estimator is very similar to those suggested by Borusyak et al. (2021), Liu
 ```
 
 
-### Aggregating $\tau^{sdid}_{a,\ell}$s into event-study estimates
+### Aggregating $\tau^{sdid}_{a,\ell}$ estimators into event-study estimates
 
-Let $N^a_{tr}$ be the number of treated groups that start their treatment in period $a$. Let $A_{\ell}$ be the subset of cohorts in $A$ such that  $a - 1 + \ell \leq T$, i.e. such that their $\ell$-th dynamic effect can be computed. Lastly, let $N^{\ell}_{tr} = \sum_{a \in A_{\ell}} N^a_{tr}$ denote the number of groups in cohorts that are encompassed in the estimation of the $\ell$ dynamic effect. By definition, $N^{1}_{tr} = \sum_{a \in A} N^a_{tr} = N_{tr}$. Let
+Let $N^a_{tr}$ be the number of treated groups that start their treatment in period $a$. Let $A_{\ell}$ be the subset of cohorts in $A$ such that  $a - 1 + \ell \leq T$, i.e. such that their $\ell$-th dynamic effect can be computed. Lastly, let 
+```math
+N^{\ell}_{tr} = \sum_{a \in A_\ell} N^a_{tr}
+```
+denote the number of groups in cohorts that are included in the estimation of the $\ell$-th dynamic effect. 
+
+We can use this notation to aggregate the cohort-specific dynamic effects into a single estimator. Let
 
 ```math
 \tau^{sdid}_\ell = \frac{1}{N_{tr}} \sum_{a \in A_{\ell}} \frac{N^a_{tr}}{N^{\ell}_{tr}} \tau^{sdid}_\ell
