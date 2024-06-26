@@ -4,7 +4,7 @@ A Stata module to implement event study analysis with `sdid`.
 
 ## Overview
 
-`sdid_event` computes event study version of the Synthetic Difference-in-Differences (SDID) estimators from Arkhangelsky et al. (2021). As the name suggests, this program is an extension of `sdid`. As a result, all the conventions and requirement for the implementation of `sdid` also apply for `sdid_event`. `sdid_event` can also be used in staggered adoption designs, with differential timing of treatment adoption. Also, the command supports both the **bootstrap** and **placebo** vce() options for inference.
+`sdid_event` computes the event-study version of the Synthetic Difference-in-Differences (SDID) estimators from Arkhangelsky et al. (2021). As the name suggests, this program is an extension of `sdid`. As a result, all the conventions and requirement for the implementation of `sdid` also apply for `sdid_event`. `sdid_event` can also be used in staggered adoption designs, with differential timing of treatment adoption. Also, the command supports both the **bootstrap** and **placebo** vce() options for inference.
 
 The derivation of the estimators computed by sdid_event can be found in the [companion paper](https://github.com/DiegoCiccia/sdid/blob/main/sdid_event/sdid_event.pdf).The user can also request cohort-specific aggregated and event study estimates via the **disag** option.
 
