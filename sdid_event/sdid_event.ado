@@ -46,7 +46,9 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
         mata: b = (st_matrix("H_main")[.,1])'
         mata: st_matrix("b", b)
         mat coln b = `rownm'
+
         ereturn post b
+        ereturn matrix H = H_main
     }
     else {  
             qui {
@@ -90,7 +92,9 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
             mat coln b = `rownm'
             mat rown V = `rownm'
             mat coln V = `rownm'
+
             ereturn post b V
+            ereturn matrix H = H_SE
 
             if `failed' > 0 {
                 di as result ""
@@ -102,6 +106,7 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
         di ""
         di "Disaggregated ATTs - Cohort level"
         matlist res_main
+        ereturn matrix H_c = res_main
     }
 
     cap drop *_XX

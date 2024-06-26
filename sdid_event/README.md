@@ -37,6 +37,12 @@ As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binar
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).
 
+## Output
+
++ **e(H)**: matrix with console output.
++ **e(H_c)**: matrix with **disag** option output.
++ **e(b)** and **e(V)**: conventional point estimate vector and variance matrix to allow for integration with **estout**.
+
 ## Example
 
 DGP with time-varying treatment effect:
@@ -54,6 +60,23 @@ gen D = T > mod(G, 4) + 1 & G >= `GG'/4
 gen Y = uniform() * (1 + D + 10*D*T)
 
 sdid_event Y G T D
+```
+
+Generating a graph
+```stata
+mat res = e(H)
+svmat res
+gen id = _n - 1 if !missing(res1)
+
+// Turning the ATT line into the reference period
+foreach v of varlist res* {
+    replace `v' = 0 in 1
+}
+
+twoway (line res1 id, lcolor(navy)) ///
+       (scatter res1 id, msize(medlarge) msymbol(o) mcolor(navy) legend(off)) ///
+       (rcap res3 res4 id, lcolor(maroon)), ///
+        title("sdid_event") xtitle("Relative time to treatment change") 
 ```
 
 ## References 
