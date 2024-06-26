@@ -68,7 +68,7 @@ mat res = e(H)
 svmat res
 gen id = _n - 1 if !missing(res1)
 
-// Turning the ATT line into the reference period
+* Turning the ATT line into the reference period
 foreach v of varlist res* {
     replace `v' = 0 in 1
 }
