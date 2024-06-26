@@ -73,11 +73,12 @@ foreach v of varlist res* {
     replace `v' = 0 in 1
 }
 
-twoway (line res1 id, lcolor(navy)) ///
-       (scatter res1 id, msize(medlarge) msymbol(o) mcolor(navy) legend(off)) ///
-       (rcap res3 res4 id, lcolor(maroon)), ///
-        title("sdid_event") xtitle("Relative time to treatment change") 
+twoway (line res1 id, lc(black)) (rcap res3 res4 id, lc(black)) (scatter res1 id, mc(black)) , legend(off) title("sdid_event") xtitle("Relative time to treatment change") 
 ```
+
+The result should look like this:
+
+![sdid_event](https://github.com/DiegoCiccia/sdid/assets/71022390/08917647-08b6-4a52-a0f5-64170bee45ce)
 
 ## References 
 
