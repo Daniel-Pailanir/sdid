@@ -33,6 +33,12 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
 
     if "`vce'" == "off" {
         matlist H_main
+
+        local rownm: rown H_main
+        mata: b = (st_matrix("H_main")[.,1])'
+        mata: st_matrix("b", b)
+        mat coln b = `rownm'
+        ereturn post b
     }
     else {  
             qui {
@@ -68,6 +74,15 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
             mat rown H_SE = `rownm'
             mat coln H_SE = "Estimate" "SE" "LB CI" "UB CI" "Switchers"
             matlist H_SE       
+
+            mata: b = (st_matrix("H_SE")[.,1])'
+            mata: V = diag((st_matrix("H_SE")[.,2]):^2)
+            mata: st_matrix("b", b)
+            mata: st_matrix("V", V)
+            mat coln b = `rownm'
+            mat rown V = `rownm'
+            mat coln V = `rownm'
+            ereturn post b V
 
             if `failed' > 0 {
                 di as result ""
@@ -226,7 +241,6 @@ void ATT_compute(Y, omega, lambda, G_max, N_Post, N_Tr) {
     lambda_nm = select(lambda, lambda[.,1] :~= .)
     Y_mat = rowshape(Y_nm, G_max)
     ATT = ((-omega'), J(1, N_Tr, 1/N_Tr)) * Y_mat * ((-lambda_nm)\J(N_Post, 1, 1/N_Post))
-    ATT
     st_numscalar("ATT", ATT)
 }
 end
@@ -234,14 +248,18 @@ end
 cap mata: mata drop ATT_aggte()
 mata:
 void ATT_aggte(B, W, E, S) {
-    X = W' \ B
+    X = W' \ S' \ B
     H = J(rows(B), 3, .)
-    W
-    for (j = 2; j <= rows(X); j++) {
-        temp_mat = X[(1, j), .]
+    for (j = 3; j <= rows(X); j++) {
+        if (j == 3) {
+            temp_mat = X[(1, j), .]
+        }
+        else {
+            temp_mat = X[(2, j), .]
+        }
         temp_mat = select(temp_mat, temp_mat[2, .] :~= .)
-        H[j-1, 1] = (temp_mat[1, .] :/ sum(temp_mat[1, .])) * temp_mat[2, .]'
-        H[j-1, 3] = sum(S[1..cols(temp_mat),.])
+        H[j-2, 1] = (temp_mat[1, .] :/ sum(temp_mat[1, .])) * temp_mat[2, .]'
+        H[j-2, 3] = sum(S[1..cols(temp_mat),.])
     }
     st_matrix("H",  H[1..(1+E), .])    
 }

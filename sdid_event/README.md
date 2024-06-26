@@ -8,64 +8,6 @@ A Stata module to implement event study analysis with `sdid`.
 net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid/main/sdid_event") replace
 ```
 
-## Adapting `sdid` to event study analysis
-
-In what follows, I use the notation from Clark et al. (2023) to present the estimation procedure for event-study Synthetic Difference-in-Differences (SDID) estimators.
-In a setting with $G$ groups observed over $T$ periods, $N_{tr} < G$ groups receive treatment $D$ starting from period $1 < a \leq T$, henceforth called *cohort* or adoption period.
-Units are indexed by $i$, such that the first $N_{co} = N - N_{tr}$ units are the controls.
-The treatment $D$ is binary, i.e. $D \in \lbrace 0,1\rbrace$, and it affects some outcome of interest $Y$.
-The values of $a$ are collected in $A$, i.e. the adoption date vector.
-For the sake of generality, we assume that $|A| > 1$, meaning that groups start receiving the treatment at different periods.
-The case with no differential timing can be simply retrieved by considering one cohort at a time.
-The number of periods from the the onset of the treatment to end of the panel is denoted as $T^{a}_{post}$ and it is cohort-specific.
-
-### Disaggregating $\tau^{sdid}_a$
-
-The cohort-specific SDID estimator from Arkhangelsky et al. (2019) can be rearranged as follows:
-
-```math
-\tau^{sdid}_a = \frac{1}{T^a_{post}} \sum_{t = a}^T \left( \frac{1}{N_{tr}} \sum_{i = N_{co} + 1}^N Y_{i,t} - \sum_{i = 1}^{N_{co}} \omega_i Y_{i,t}\right) -  \sum_{t = 1}^{a-1} \left( \frac{1}{N_{tr}} \sum_{i = N_{co} + 1}^N \lambda_t Y_{i,t} - \sum_{i = 1}^{N_{co}}\omega_i \lambda_t  Y_{i,t}\right)
-```
-
-where $\lambda_t$ and $\omega_i$ are the optimal weights chosen to best approximate the pre-treatment outcome evolution of treated and (synthetic) control units. $\tau^{sdid}_a$ compares the average outcome difference of treated in the $a$ cohort and controls before and after the onset of the treatment. In doing so, $\tau^{sdid}_a$ encompasses all the post-treatment periods.
-
-As a result, it is possible to estimate the treatment effect $\ell$ periods after the adoption of the treatment, with $\ell \in \lbrace 1,..., T^a_{post} \rbrace$, via a simple disaggregation of $\tau^{sdid}_a$ into the following event-study estimators:
-
-```math
-\tau^{sdid}_{a, \ell} = \frac{1}{N_{tr}} \sum_{i = N_{co} + 1}^N Y_{i,a-1+\ell} - \sum_{i = 1}^{N_{co}} \omega_i Y_{i,a-1+\ell} -  \sum_{t = 1}^{a-1} \left( \frac{1}{N_{tr}} \sum_{i = N_{co} + 1}^N \lambda_t Y_{i,t} - \sum_{i = 1}^{N_{co}}  \omega_i \lambda_t Y_{i,t}\right)
-```
-
-This estimator is very similar to those suggested by Borusyak et al. (2021), Liu et al. (2021) and Gardner (2021), when the design is a canonical DiD (de Chaisemartin and D'Haultfoeuille, 2024). The only difference lies in the presence of unit-time specific weights. Notice that by construction:
-
-```math
-\tau^{sdid}_a = \frac{1}{T^a_{post}} \sum_{\ell = 1}^{T^a_{post}} \tau^{sdid}_{a, \ell}
-```
-
-
-### Aggregating $\tau^{sdid}_{a,\ell}$ estimators into event-study estimates
-
-Let $N^a_{tr}$ be the number of treated groups that start their treatment in period $a$. Let $A_{\ell}$ be the subset of cohorts in $A$ such that  $a - 1 + \ell \leq T$, i.e. such that their $\ell$-th dynamic effect can be computed. Lastly, let 
-```math
-N^{\ell}_{tr} = \sum_{a \in A_\ell} N^a_{tr}
-```
-denote the number of groups in cohorts that are included in the estimation of the $\ell$-th dynamic effect. 
-
-We can use this notation to aggregate the cohort-specific dynamic effects into a single estimator. Let
-
-```math
-\tau^{sdid}_\ell = \frac{1}{N_{tr}} \sum_{a \in A_{\ell}} \frac{N^a_{tr}}{N^{\ell}_{tr}} \tau^{sdid}_\ell
-```
-
-denote the weighted sum of the cohort-specific treatment effects $\ell$ periods after the onset of the treatment, with weights corresponding to the relative number of groups participating into each cohort.
-
-
-
-
-
-
-
-
-
 
 
 ## Example
