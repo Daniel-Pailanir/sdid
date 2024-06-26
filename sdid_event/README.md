@@ -2,13 +2,39 @@
 
 A Stata module to implement event study analysis with `sdid`.
 
+## Overview
+
+`sdid_event` computes event study version of the Synthetic Difference-in-Differences (SDID) estimators from Arkhangelsky et al. (2021). As the name suggests, this program is an extension of `sdid`. As a result, all the conventions and requirement for the implementation of `sdid` also apply for `sdid_event`. `sdid_event` can also be used in staggered adoption designs, with differential timing of treatment adoption. Also, the command supports both the **bootstrap** and **placebo** vce() options for inference.
+
+The derivation of the estimators computed by sdid_event can be found in the [companion paper](https://github.com/DiegoCiccia/sdid/blob/main/sdid_event/sdid_event.pdf).The user can also request cohort-specific aggregated and event study estimates via the **disag** option.
+
+This package depends on `sdid` and `unique`, which can be both installed from SSC.
+
 ## Setup
 
 ```stata
 net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid/main/sdid_event") replace
 ```
 
+## Syntax
 
+```stata
+sdid_event Y G T D [if] [in] [, , effects(integer 0) disag vce(string) brep(integer 50)]
+```
+
+where:
++ **Y** is the outcome variable.
++ **G** is the unit/group variable.
++ **T** is the time variable.
++ **D** is the treatment variable.
+
+As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binary and absorbing treatment, meaning that the treated units cannot revert their treatment status.
+
+### Options
++ **effects**: number of event study effects to be reported.
++ **disag**: reports estimates of the cohort-specific aggregated and event study estimators.
++ **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
++ **brep()**: number of bootstrap replications (default = 50).
 
 ## Example
 
@@ -25,39 +51,12 @@ gen G = mod(_n-1,`GG') + 1
 bys G: gen T = _n
 gen D = T > mod(G, 4) + 1 & G >= `GG'/4
 gen Y = uniform() * (1 + D + 10*D*T)
-```
 
-Basic syntax - all the effects are retrieved:
-
-```stata
 sdid_event Y G T D
-```
-
-**effects()** - limiting the number of reported estimates:
-
-```stata
-sdid_event Y G T D, effects(5)
-```
-
-**disag** - reporting cohort-specific dynamic treatment effect estimates:
-
-```stata
-sdid_event Y G T D, effects(5) disag
 ```
 
 ## References 
 
 Arkhangelsky, D., Athey, S., Hirshberg, D., Imbens, G., Wager, S. (2019) [Synthetic difference in differences](https://www.nber.org/papers/w25532)
 
-Borusyak, K., Jaravel, X. and Spiess, J. (2021) [Revisiting event study designs: Robust and efficient estimation](https://doi.org/10.1093/restud/rdae007)
-
 Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) [Synthetic difference in differences estimation](https://arxiv.org/abs/2301.11859)
-
-de Chaisemartin, C., D'Haultfoeuille, X. (2024) [Difference-in-Differences for Simple and Complex Natural Experiments](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4487202)
-
-Liu, L., Wang, Y., Xu, Y. (2024). [A practical guide to counterfactual estimators for causal inference with time‐series cross‐sectional data](https://onlinelibrary.wiley.com/doi/full/10.1111/ajps.12723)
-
-Gardner, J. (2021) [Two-stage differences in differences](https://arxiv.org/abs/2207.05943)
-
-
-

@@ -6,6 +6,14 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
     mark `touse' `if' `in'
 
     qui {
+
+        foreach p in sdid unique {
+            cap which `p'
+            if _rc != 0 {
+                noi ssc install `p', replace
+            }
+        }
+
         tokenize `varlist'
         sort `2' `3'
         bys `2': egen ever_treated_XX = max(`4')
