@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 2.0.1 April 15, 2023
+*! Version 2.0.2 June 28, 2024
 *! Author: Pailañir Daniel, Clarke Damian
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
 
@@ -606,7 +606,7 @@ ereturn scalar ATT_r = `UCI'
 
 if ("`method'"=="sdid" | "`method'"=="" ) {
     local tabletitle "Synthetic Difference-in-Differences Estimator"
-    local tablefootnote "Refer to Arkhangelsky et al., (2020) for theoretical derivations."
+    local tablefootnote "Refer to Arkhangelsky et al., (2021) for theoretical derivations."
 }
 if ("`method'"=="did") {
     local tabletitle "Difference-in-Differences Estimator"
@@ -627,7 +627,7 @@ di as text %12s abbrev("`1'",12) " {c |}     ATT     Std. Err.     t      P>|t| 
 di as text "{hline 13}{c +}{hline 63}"
 di as text %12s abbrev("`4'",12) " {c |} " as result %9.5f `ATT' "  " %9.5f `se' %9.2f `t' %9.3f `pval' "   " %9.5f `LCI' "   " %9.5f `UCI'
 di as text "{hline 13}{c BT}{hline 63}"
-di as text "95% CIs and p-values are based on Large-Sample approximations."
+di as text "95% CIs and p-values are based on large-sample approximations."
 di as text "`tablefootnote'" 
 if (length("`verbose'")>0) di as text "`reached_l'"
 if (length("`verbose'")>0) di as text "`reached_o'"
