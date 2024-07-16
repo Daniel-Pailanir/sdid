@@ -57,7 +57,7 @@ treatment adoption. Also, the command supports both the
 
 {p 4 4}
 The derivation of the estimators computed by {cmd:sdid_event} 
-can be found in the {browse "https://github.com/DiegoCiccia/sdid/blob/main/sdid_event/sdid_event.pdf":companion paper}.
+can be found in the {browse "https://arxiv.org/abs/2407.09565":companion paper}.
 The user can also request cohort-specific aggregated 
 and event study estimates via the {cmd:disag} option.
 As in {cmd:sdid}, the dataset has to be a balanced panel 
@@ -134,8 +134,8 @@ Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/
 
 {cmd:sdid_event}
 {p 4 4}
-Diego Ciccia, Sciences Po, Northwestern-Kellogg. 
-{browse "mailto:diego.ciccia@kellogg.northwestern.edu":diego.ciccia@kellogg.northwestern.edu}
+Diego Ciccia, Sciences Po. 
+{browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
 {p_end}
 
 {cmd:sdid}
