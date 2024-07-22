@@ -22,6 +22,7 @@
 {cmd:disag}
 {cmd:vce(}{it:string}{cmd:)}
 {cmd:brep(}{it:integer} 50{cmd:)]}
+{cmd:method(}{it:string}{cmd:)}
 {p_end}
 
 {p 4 4}
@@ -92,6 +93,12 @@ Algorithms 2 and 4 in Clarke et al. (2023).
 {cmd:brep()}: number of bootstrap replications (default = 50).
 {p_end}
 
+{p 4 4}
+{cmd:method()}: estimation method. Allowed arguments:
+{cmd:sdid} (default) for Synthetic DiD, {cmd:did} for
+traditional DiD and {cmd:sc} for Synthetic Control.
+{p_end}
+
 {marker examples}{...}
 {title:Examples}
 {phang2}{stata clear}{p_end}
@@ -125,9 +132,11 @@ Algorithms 2 and 4 in Clarke et al. (2023).
 {marker references}{...}
 {title:References}
 
-Arkhangelsky, D., Athey, S., Hirshberg, D., Imbens, G., Wager, S. (2019) {browse "https://www.nber.org/papers/w25532":Synthetic difference in differences}
+Arkhangelsky, D., Athey, S., Hirshberg, D., Imbens, G., Wager, S. (2019) {browse "https://www.nber.org/papers/w25532":Synthetic difference in differences}.
 
-Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/abs/2301.11859":Synthetic difference in differences estimation}
+Ciccia, D. (2024) {browse "https://arxiv.org/abs/2407.09565":A Short Note on Event-Study Synthetic Difference-in-Differences Estimators}.
+
+Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/abs/2301.11859":Synthetic difference in differences estimation}.
 
 {marker authors}{...}
 {title:Authors}

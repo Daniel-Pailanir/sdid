@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vce(string) brep(integer 50)]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) disag vce(string) brep(integer 50) method(string)]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -14,11 +14,21 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
             }
         }
 
+        if "`method'" == "" local method "sdid"
+        if !inlist("`method'", "sdid", "did", "sc") {
+            di as err "Invalid syntax in method() option."
+            exit
+        }
+
+        local m_sdid "Synthetic Difference-in-differences"
+        local m_did "Difference-in-differences"
+        local m_sc "Synthetic Control"
+
         tokenize `varlist'
         sort `2' `3'
         bys `2': egen ever_treated_XX = max(`4')
 
-        sdid_event_core `varlist' if `touse', effects(`effects') `disag'
+        sdid_event_core `varlist' if `touse', effects(`effects') method(`method') `disag'
         mat res_main = res
         mat H_main = H
 
@@ -38,6 +48,7 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
             }
         }
     }
+    di as text "`m_`method''"
 
     if "`vce'" == "off" {
         matlist H_main
@@ -65,7 +76,7 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
             forv j = 1/`brep' {
                 qui {
                     scalar r_XX = `j'
-                    cap sdid_event_core `varlist' if `touse', effects(`effects') sampling(`vce')
+                    cap sdid_event_core `varlist' if `touse', effects(`effects') method(`method') sampling(`vce')
                     if _rc == 0 {
                         mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
                         mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
@@ -102,6 +113,7 @@ syntax varlist(max = 4 min = 4 numeric) [if] [in] [, effects(integer 0) disag vc
             }
     }
 
+
     if "`disag'" != "" {
         di ""
         di "Disaggregated ATTs - Cohort level"
@@ -114,7 +126,7 @@ end
 
 cap program drop sdid_event_core
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4 numeric) [if] [in], effects(integer) [disag sampling(string)]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag sampling(string)]
 preserve
 qui {
 
@@ -184,7 +196,7 @@ qui {
     } 
     else scalar effects = `effects'
 
-    sdid Y_XX G_XX T_XX D_XX, vce(bootstrap) reps(2) mattitles
+    sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method') mattitles
     mata: mata set matastrict off
     mata: omega = st_matrix("e(omega)")
     mata: lambda =st_matrix(" e(lambda)")
