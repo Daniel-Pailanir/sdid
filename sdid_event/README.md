@@ -36,7 +36,7 @@ As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binar
 + **disag**: reports estimates of the cohort-specific aggregated and event study estimators.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).
-+ **method(**sdid | did | sc **)**: selects estimation method as in **sdid**.
++ **method(** sdid | did | sc **)**: selects estimation method as in **sdid**.
 
 ## Output
 
