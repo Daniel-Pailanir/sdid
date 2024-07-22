@@ -101,6 +101,11 @@ traditional DiD and {cmd:sc} for Synthetic Control.
 
 {marker examples}{...}
 {title:Examples}
+
+{p 2 4}
+Example 1: Random DGP
+{p_end}
+
 {phang2}{stata clear}{p_end}
 {phang2}{stata local GG = 19}{p_end}
 {phang2}{stata local TT = 20}{p_end}
@@ -113,6 +118,24 @@ traditional DiD and {cmd:sc} for Synthetic Control.
 {phang2}{stata gen Y = uniform() * (1 + D + 10*D*T)}{p_end}
 
 {phang2}{stata sdid_event Y G T D}{p_end}
+
+{p 2 4}
+Example 2: Bhalotra, Clarke, Gomes 
+& Venkataramani (2023) from Section 4.4 
+of Clarke et al. (2023)
+{p_end}
+
+{phang2}{stata webuse set www.damianclarke.net/stata/}{p_end}
+{phang2}{stata webuse quota_example.dta, clear}{p_end}
+{phang2}{stata keep if quotaYear==2002 | quotaYear==.}{p_end}
+{phang2}{stata sdid_event womparl country year quota, vce(bootstrap)}{p_end}
+{phang2}{stata mat res = e(H)}{p_end}
+{phang2}{stata svmat res}{p_end}
+{phang2}{stata gen id = _n - 1 if !missing(res1)}{p_end}
+{phang2}{stata replace res1 = 0 in 1}{p_end}
+{phang2}{stata replace res3 = 0 in 1}{p_end}
+{phang2}{stata replace res4 = 0 in 1}{p_end}
+{phang2}{stata twoway  (rarea res3 res4 id, lc(gs10) fc(gs11)) (scatter res1 id, mc(black)) , legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-))}{p_end}
 
 {marker saved_results}{...}
 {title:Saved results}
