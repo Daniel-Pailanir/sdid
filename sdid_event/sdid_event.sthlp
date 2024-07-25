@@ -17,12 +17,15 @@
 
 {p 4 4}
 {cmd:sdid_event Y G T D [if] [in]}
+{p_end}
+{p 8 4}
 {cmd:[,}
 {cmd:effects(}{it:integer} 0{cmd:)}
+{cmd:placebo(}{it:integer} 0{cmd:)}
 {cmd:disag}
 {cmd:vce(}{it:string}{cmd:)}
-{cmd:brep(}{it:integer} 50{cmd:)]}
-{cmd:method(}{it:string}{cmd:)}
+{cmd:brep(}{it:integer} 50{cmd:)}
+{cmd:method(}{it:string}{cmd:)]}
 {p_end}
 
 {p 4 4}
@@ -75,6 +78,12 @@ which can be both installed from SSC.
 {title:Options}
 {p 4 4}
 {cmd:effects()}: number of event study effects to be reported.
+By default, all feasible dynamic effects are reported.
+{p_end}
+
+{p 4 4}
+{cmd:placebo()}: number of placebo estimates to be computed. 
+{cmd:placebo(all)} returns all feasible placebo estimates.
 {p_end}
 
 {p 4 4}
@@ -128,14 +137,13 @@ of Clarke et al. (2023)
 {phang2}{stata webuse set www.damianclarke.net/stata/}{p_end}
 {phang2}{stata webuse quota_example.dta, clear}{p_end}
 {phang2}{stata keep if quotaYear==2002 | quotaYear==.}{p_end}
-{phang2}{stata sdid_event womparl country year quota, vce(bootstrap)}{p_end}
-{phang2}{stata mat res = e(H)}{p_end}
+{phang2}{stata sdid_event womparl country year quota, vce(placebo) brep(50) placebo(all)}{p_end}
+{phang2}{stata mat res = e(H)[2..27,1..5]}{p_end}
 {phang2}{stata svmat res}{p_end}
 {phang2}{stata gen id = _n - 1 if !missing(res1)}{p_end}
-{phang2}{stata replace res1 = 0 in 1}{p_end}
-{phang2}{stata replace res3 = 0 in 1}{p_end}
-{phang2}{stata replace res4 = 0 in 1}{p_end}
-{phang2}{stata twoway  (rarea res3 res4 id, lc(gs10) fc(gs11)) (scatter res1 id, mc(black)) , legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-))}{p_end}
+{phang2}{stata replace id = 14 - _n if _n > 14 & !missing(res1)}{p_end}
+{phang2}{stata sort id}{p_end}
+{phang2}{stata twoway  (rarea res3 res4 id, lc(gs10) fc(gs11%50)) (scatter res1 id, mc(blue) ms(d)), legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-)) xline(0, lc(black) lp(solid))}{p_end}
 
 {marker saved_results}{...}
 {title:Saved results}

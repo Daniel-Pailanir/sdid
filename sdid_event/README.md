@@ -20,7 +20,7 @@ net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid
 ## Syntax
 
 ```stata
-sdid_event Y G T D [if] [in] [, effects(integer 0) disag vce(string) brep(integer 50)]
+sdid_event Y G T D [if] [in] [, effects(integer 0) placebo(integer 0) disag vce(string) brep(integer 50)]
 ```
 
 where:
@@ -33,6 +33,7 @@ As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binar
 
 ### Options
 + **effects**: number of event study effects to be reported.
++ **placebo**: number of placebo estimates to be computed.
 + **disag**: reports estimates of the cohort-specific aggregated and event study estimators.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).

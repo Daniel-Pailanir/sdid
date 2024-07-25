@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) disag vce(string) brep(integer 50) method(string)]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string)]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -28,7 +28,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) disag vce(string
         sort `2' `3'
         bys `2': egen ever_treated_XX = max(`4')
 
-        sdid_event_core `varlist' if `touse', effects(`effects') method(`method') `disag'
+        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag'
         mat res_main = res
         mat H_main = H
 
@@ -73,20 +73,19 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) disag vce(string
             di "|0% " _dup(41) "-" " 100%|"
             di "|" _continue
             local counter = 1/50
-            forv j = 1/`brep' {
-                qui {
-                    scalar r_XX = `j'
-                    cap sdid_event_core `varlist' if `touse', effects(`effects') method(`method') sampling(`vce')
-                    if _rc == 0 {
-                        mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
-                        mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
+            scalar r_XX = 1
+            while r_XX <= breps {
+                qui cap sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') 
+                if _rc == 0 {
+                    mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
+                    mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
+                    if (r_XX/`brep') > `counter' {
+                        di "." _continue
+                        local counter = `counter' + 1/50
                     }
-                    else local failed = `failed' + 1
+                    scalar r_XX = r_XX + 1
                 }
-                if (`j'/`brep') > `counter' {
-                    di "." _continue
-                    local counter = `counter' + 1/50
-                }
+                else local failed = `failed' + 1
             }
             di "|" _newline
 
@@ -109,7 +108,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) disag vce(string
 
             if `failed' > 0 {
                 di as result ""
-                di as result "WARNING: no treated or control groups in `failed' of the `brep' bootstrap run(s)."
+                di as result "WARNING: Restarted `failed' bootstrap run(s) with no treated or control groups."
             }
     }
 
@@ -126,7 +125,7 @@ end
 
 cap program drop sdid_event_core
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag sampling(string)]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string)]
 preserve
 qui {
 
@@ -184,9 +183,16 @@ qui {
 
     sum T_XX
     scalar T_max = r(max)
+    scalar T_min = r(min)
+
+    // Number of feasible event study coefficients
     gen T_g_XX = T_max - C_XX + 1 if ever_treated_XX == 1
     sum T_g_XX
     local L_g = r(max)
+
+    // Number of feasible placebo estimates
+    sum C_XX if ever_treated_XX == 1
+    local L_pl_g = r(max) - T_min
 
     if `effects' == 0 local effects = `L_g'
     if `effects' > `L_g' {
@@ -196,10 +202,27 @@ qui {
     } 
     else scalar effects = `effects'
 
+    scalar placebo = 0
+    if "`placebo'" != "" {
+        if "`placebo'" == "all" {
+            scalar placebo = `L_pl_g'
+        }
+        else {
+            if `placebo' > `L_pl_g' {
+                di as err "You have requested `placebo' placebo, but sdid_event can compute at most `L_pl_g' placebo."
+                di as err "The estimation will resume with `L_pl_g' placebo."
+                scalar placebo = `L_pl_g'
+            }
+            else {
+                scalar placebo = `placebo'
+            }
+        }
+    }
+
     sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method') mattitles
     mata: mata set matastrict off
     mata: omega = st_matrix("e(omega)")
-    mata: lambda =st_matrix(" e(lambda)")
+    mata: lambda = st_matrix("e(lambda)")
     matrix design = e(adoption)
     mata: st_numscalar("cohorts", rows(st_matrix("design")))
 
@@ -207,6 +230,12 @@ qui {
     local rown "ATT_c"
     forv t = 1/`L_g' {
         local rown "`rown' Effect_c`t'"
+    }
+    if "`placebo'" != "" {
+        mat res_pl = J(`L_pl_g', `=cohorts', .)
+        forv t = 1/`L_pl_g' {
+            local rown "`rown' Placebo_c`t'"
+        }
     }
     local coln ""
     matrix c_weight = J(`=cohorts', 1, .)
@@ -217,6 +246,7 @@ qui {
 
         sum C_XX if C_XX == `c'
         scalar N_Post_`c' = T_max - r(mean) + 1
+        scalar N_Pre_`c' = r(mean) - T_min
         unique G_XX if C_XX == `c'
         scalar N_Tr_`c' = r(unique)
         unique G_XX if inlist(C_XX, 0, `c')
@@ -238,14 +268,33 @@ qui {
             mata: ATT_compute(st_data(., "Y_XX_`c'_`l'"), omega_temp, lambda_temp, st_numscalar("N_`c'"), 1, st_numscalar("N_Tr_`c'"))
             mat res[1 + `l', `j'] = ATT
         }
+
+        if "`placebo'" != "" {
+            gen Y_XX_`c'_pre = Y_XX_`c' if (T_XX < `c')
+            forv l = 1/`=N_Pre_`c'' {
+                scalar pl = `l'
+                mata: ATT_compute_pl(st_data(., "Y_XX_`c'_pre"), omega_temp, lambda_temp, st_numscalar("N_`c'"), st_numscalar("pl"),st_numscalar("N_Tr_`c'"))
+                mat res_pl[`l', `j'] = ATT
+            }
+        }
+    }
+    if "`placebo'" != "" {
+        mat res = res \ res_pl
     }
     
-    mata: ATT_aggte(st_matrix("res"), st_matrix("t_weight"), st_numscalar("effects"), st_matrix("c_weight"))
+    scalar tot_est = scalar(effects) + scalar(placebo)
+    mat li res
+    mata: ATT_aggte(st_matrix("res"), st_matrix("t_weight"), st_numscalar("tot_est"), st_matrix("c_weight"))
 }   
 
     local rown_effects "ATT"
     forv j = 1/`=effects' {
         local rown_effects "`rown_effects' Effect_`j'"
+    }
+    if "`placebo'" != "" {
+        forv j = 1/`=placebo' {
+            local rown_effects "`rown_effects' Placebo_`j'"
+        }
     }
     mat rown H = `rown_effects'
     mat coln H = Estimate SE Switchers
@@ -266,6 +315,18 @@ void ATT_compute(Y, omega, lambda, G_max, N_Post, N_Tr) {
     lambda_nm = select(lambda, lambda[.,1] :~= .)
     Y_mat = rowshape(Y_nm, G_max)
     ATT = ((-omega'), J(1, N_Tr, 1/N_Tr)) * Y_mat * ((-lambda_nm)\J(N_Post, 1, 1/N_Post))
+    st_numscalar("ATT", ATT)
+}
+end
+
+cap mata: mata drop ATT_compute_pl()
+mata:
+void ATT_compute_pl(Y, omega, lambda, G_max, pl, N_Tr) {
+    Y_nm = select(Y, Y[.,1] :~= .)
+    lambda_nm = select(lambda, lambda[.,1] :~= .)
+    Y_mat = rowshape(Y_nm, G_max)
+    Y_mat = Y_mat, Y_mat[.,cols(Y_mat)-pl+1]
+    ATT = ((-omega'), J(1, N_Tr, 1/N_Tr)) * Y_mat * ((-lambda_nm)\1)
     st_numscalar("ATT", ATT)
 }
 end
