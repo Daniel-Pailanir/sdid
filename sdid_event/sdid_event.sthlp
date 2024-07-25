@@ -143,7 +143,9 @@ of Clarke et al. (2023)
 {phang2}{stata gen id = _n - 1 if !missing(res1)}{p_end}
 {phang2}{stata replace id = 14 - _n if _n > 14 & !missing(res1)}{p_end}
 {phang2}{stata sort id}{p_end}
-{phang2}{stata twoway  (rarea res3 res4 id, lc(gs10) fc(gs11%50)) (scatter res1 id, mc(blue) ms(d)), legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-)) xline(0, lc(black) lp(solid))}{p_end}
+{phang2}
+{stata twoway (rarea res3 res4 id, lc(gs10) fc(gs11%50)) (scatter res1 id, mc(blue) ms(d)), legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-)) xline(0, lc(black) lp(solid))}
+{p_end}
 
 {marker saved_results}{...}
 {title:Saved results}
