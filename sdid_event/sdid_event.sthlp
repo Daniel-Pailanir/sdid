@@ -174,13 +174,11 @@ Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/
 {marker authors}{...}
 {title:Authors}
 
-{cmd:sdid_event}
 {p 4 4}
 Diego Ciccia, Sciences Po. 
-{browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
+{browse "mailto:diego.ciccia@kellogg.northwestern.edu":diego.ciccia@kellogg.northwestern.edu}
 {p_end}
 
-{cmd:sdid}
 {p 4 4}
 Damian Clarke, Universidad de Chile.
 {browse "mailto:dclarke@fen.uchile.cl":dclarke@fen.uchile.cl}

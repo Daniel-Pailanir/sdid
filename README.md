@@ -5,6 +5,10 @@
 This Stata package implements the synthetic difference-in-differences estimation procedure, along with a range of inference and graphing procedures, following Arkhangelsky et al., (2021).  Arkhangelsky et al. provide a code implementation in R, with accompanying materials here: [synthdid](https://synth-inference.github.io/synthdid/). 
 Here we provide a native Stata implementation, principally written in Mata.  This package extends the funcionality of the original R package, allowing very simply for estimation in contexts with staggered adoption over multiple treatment periods (as well as in a single adoption period as in the original code).  Some further details can be found in the accompanying working paper [here](https://docs.iza.org/dp15907.pdf).
 
+>[!Tip]
+>If you wish to implement Event Study analysis with SDiD, please check out [sdid_event](https://github.com/Daniel-Pailanir/sdid/tree/main/sdid_event) and its [technical note](https://arxiv.org/abs/2407.09565).
+>
+
 To install directly into Stata:
 ```s
 ssc install sdid, replace
@@ -115,6 +119,9 @@ Standard errors in parentheses
 
 
 ### References
-Dmitry Arkhangelsky, Susan Athey, David A. Hirshberg, Guido W. Imbens, and Stefan Wager. Synthetic Difference in Differences, American Economic Review, December 2021.
 
-Damian Clarke, Daniel Pailañir, Susan Athey, and Guido Imbens, Synthetic Difference-in-Differences Estimation, IZA Discussion Paper, January 2023.
+Arkhangelsky, D., Athey, S., Hirshberg, D., Imbens, G., Wager, S. (2019) [Synthetic difference in differences](https://www.nber.org/papers/w25532), American Economic Review, December 2021.
+
+Ciccia, D. (2024) [A Short Note on Event-Study Synthetic Difference-in-Differences Estimators](https://arxiv.org/abs/2407.09565)
+
+Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) [Synthetic difference in differences estimation](https://arxiv.org/abs/2301.11859), IZA Discussion Paper, January 2023.
