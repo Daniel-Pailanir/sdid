@@ -13,6 +13,14 @@ This package depends on `sdid` and `unique`, which can be both installed from SS
 
 ## Setup
 
+### SSC
+
+```stata
+ssc install sdid_event, replace
+```
+
+### Github
+
 ```stata
 net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid/main/sdid_event") replace
 ```
