@@ -176,7 +176,7 @@ Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/
 
 {p 4 4}
 Diego Ciccia, Sciences Po. 
-{browse "mailto:diego.ciccia@kellogg.northwestern.edu":diego.ciccia@kellogg.northwestern.edu}
+{browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
 {p_end}
 
 {p 4 4}

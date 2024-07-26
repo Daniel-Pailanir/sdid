@@ -367,6 +367,11 @@ Daniel Pailañir, Universidad de Chile.
 Email {browse "mailto:dpailanir@fen.uchile.cl":dpailanir@fen.uchile.cl}
 Website {browse "https://daniel-pailanir.github.io/"}
 
+Diego Ciccia, Sciences Po. 
+Email {browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
+Website {broswe "https://diegociccia.github.io/"}
+
+
 {title:Website}
 {cmd:sdid} is maintained at {browse "https://github.com/Daniel-Pailanir/sdid": https://github.com/Daniel-Pailanir/sdid} 
 
