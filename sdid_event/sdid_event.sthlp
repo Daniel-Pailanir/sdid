@@ -1,10 +1,9 @@
 {smcl}
-{viewerjumpto "Syntax" "yatchew_test##syntax"}{...}
-{viewerjumpto "Description" "yatchew_test##description"}{...}
-{viewerjumpto "Vignettes" "yatchew_test##vignettes"}{...}
-{viewerjumpto "Options" "yatchew_test##options"}{...}
-{viewerjumpto "Examples" "yatchew_test##examples"}{...}
-{viewerjumpto "Saved results" "yatchew_test##saved_results"}{...}
+{viewerjumpto "Syntax" "sdid_event##syntax"}{...}
+{viewerjumpto "Description" "sdid_event##description"}{...}
+{viewerjumpto "Options" "sdid_event##options"}{...}
+{viewerjumpto "Examples" "sdid_event##examples"}{...}
+{viewerjumpto "Saved results" "sdid_event##saved_results"}{...}
 
 {title:Title}
 
