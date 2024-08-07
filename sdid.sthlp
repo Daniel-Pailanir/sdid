@@ -93,6 +93,14 @@ output documenting optimal weights, as well as matched treatment and synthetic c
 difference-in-differences framework.  Details related to covariates and graphical options are described at more length below.
 {p_end}
 
+{pstd}
+An accompanying command {cmd:sdid_event} is available which acts as a wrapper to {cmd:sdid}
+allowing for the seamless generation of event study style estimates and confidence intervals.
+{cmd:sdid_event} can be installed from the SSC.  Discussion of SDID-event study models are
+provided in Ciccia (2024); Clarke et al, (2023), and formal details of {cmd:sdid_event} are
+laid out in Ciccia (2024).
+{p_end}
+
 
 {marker options}{...}
 {title:Options}
@@ -348,6 +356,11 @@ Journal of the European Economic Association.
 {p_end}
 
 {phang}
+D. Ciccia. 2024. {browse "https://arxiv.org/pdf/2407.09565": {it:A Short Note on Event-Study Synthetic Difference-in-Differences Estimators}.}
+arXiv. 
+{p_end}
+
+{phang}
 D. Clarke, D Pailañir, S. Athey and G. Imbens. 2023. {browse "https://docs.iza.org/dp15907.pdf": {it:Synthetic Difference-in-Differences Estimation}.}
 IZA Discussion Paper. 
 {p_end}
@@ -367,9 +380,9 @@ Daniel Pailañir, Universidad de Chile.
 Email {browse "mailto:dpailanir@fen.uchile.cl":dpailanir@fen.uchile.cl}
 Website {browse "https://daniel-pailanir.github.io/"}
 
-Diego Ciccia, Sciences Po. 
+Diego Ciccia, Sciences Po.
 Email {browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
-Website {broswe "https://diegociccia.github.io/"}
+Website {browse "https://diegociccia.github.io/"}
 
 
 {title:Website}
