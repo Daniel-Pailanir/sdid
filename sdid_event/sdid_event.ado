@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string)]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string)]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -27,6 +27,17 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         tokenize `varlist'
         sort `2' `3'
         bys `2': egen ever_treated_XX = max(`4')
+
+        if "`covariates'" != "" {
+            gen Y_res_XX = `1'
+            areg Y_res_XX `covariates' if `4' == 0, absorb(`2' `3')
+            local sel = 0
+            foreach v in `covariates' {
+                local sel = `sel' + 1
+                replace Y_res_XX = Y_res_XX - e(b)[1, `sel'] * `v'
+            }
+            local varlist = subinstr("`varlist'", "`1'", "Y_res_XX", 1)
+        }
 
         sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag'
         mat res_main = res
@@ -260,11 +271,13 @@ qui {
         sort C_XX G_XX T_XX
 
         gen Y_XX_`c' = Y_XX if inlist(C_XX, 0, `c')
+        mata: mata set matastrict off
         mata: ATT_compute(st_data(., "Y_XX_`c'"), omega_temp, lambda_temp, st_numscalar("N_`c'"), st_numscalar("N_Post_`c'"), st_numscalar("N_Tr_`c'"))
         mat res[1, `j'] = ATT
 
         forv l = 1/`=N_Post_`c'' {
             gen Y_XX_`c'_`l' = Y_XX_`c' if (T_XX == `c' - 1 + `l' | T_XX < `c')
+            mata: mata set matastrict off
             mata: ATT_compute(st_data(., "Y_XX_`c'_`l'"), omega_temp, lambda_temp, st_numscalar("N_`c'"), 1, st_numscalar("N_Tr_`c'"))
             mat res[1 + `l', `j'] = ATT
         }
@@ -273,6 +286,7 @@ qui {
             gen Y_XX_`c'_pre = Y_XX_`c' if (T_XX < `c')
             forv l = 1/`=N_Pre_`c'' {
                 scalar pl = `l'
+                mata: mata set matastrict off
                 mata: ATT_compute_pl(st_data(., "Y_XX_`c'_pre"), omega_temp, lambda_temp, st_numscalar("N_`c'"), st_numscalar("pl"),st_numscalar("N_Tr_`c'"))
                 mat res_pl[`l', `j'] = ATT
             }
