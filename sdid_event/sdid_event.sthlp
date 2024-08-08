@@ -16,8 +16,6 @@
 
 {p 4 4}
 {cmd:sdid_event Y G T D [if] [in]}
-{p_end}
-{p 8 4}
 {cmd:[,}
 {cmd:effects(}{it:integer} 0{cmd:)}
 {cmd:placebo(}{it:integer} 0{cmd:)}
