@@ -21,6 +21,7 @@
 {cmd:[,}
 {cmd:effects(}{it:integer} 0{cmd:)}
 {cmd:placebo(}{it:integer} 0{cmd:)}
+{cmd:covariates(}{it:string}{cmd:)}
 {cmd:disag}
 {cmd:vce(}{it:string}{cmd:)}
 {cmd:brep(}{it:integer} 50{cmd:)}
@@ -95,6 +96,14 @@ The allowed arguments are {cmd:off}, {cmd:bootstrap} and {cmd:placebo}.
 With {cmd:off}, the program reports only the point estimates,
 while {cmd:bootstrap} and {cmd:placebo} correspond to 
 Algorithms 2 and 4 in Clarke et al. (2023).
+{p_end}
+
+{p 4 4}
+{cmd:covariates()}: adds covariates to the estimation routine.
+To this end, {cmd:sdid_event} implements the {it:projected} method
+from {cmd:sdid}, whereas the outcome is replaced by the residuals 
+of the outcome variable from a TWFE regression on covariates, in the 
+sample of untreated and not-yet-treated units.
 {p_end}
 
 {p 4 4}
