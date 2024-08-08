@@ -116,6 +116,8 @@ Standard errors in parentheses
 * p<0.10, ** p<0.05, *** p<0.01
 ```
 
+### Acknowledgments
+We are grateful to Noah Spencer, Jared Greathouse and Asjad Naqvi for very useful feedback related to this code.  We are also very grateful to many other users who have suggested a range of useful extensions and filed bug reports which have made this code better.
 
 
 ### References
