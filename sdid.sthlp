@@ -94,11 +94,10 @@ difference-in-differences framework.  Details related to covariates and graphica
 {p_end}
 
 {pstd}
-An accompanying command {cmd:sdid_event} is available which acts as a wrapper to {cmd:sdid}
-allowing for the seamless generation of event study style estimates and confidence intervals.
-{cmd:sdid_event} can be installed from the SSC.  Discussion of SDID-event study models are
-provided in Ciccia (2024); Clarke et al, (2023), and formal details of {cmd:sdid_event} are
-laid out in Ciccia (2024).
+An accompanying command {cmd:sdid_event} is available which acts as a wrapper and extension
+to {cmd:sdid} allowing for the seamless generation of event study style estimates and
+confidence intervals. {cmd:sdid_event} can be installed from the SSC.  Discussion of SDID-event
+study models are provided in Ciccia (2024); Clarke et al, (2023), and formal details of {cmd:sdid_event} are laid out in Ciccia (2024).
 {p_end}
 
 
