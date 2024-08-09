@@ -30,13 +30,17 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
 
         if "`covariates'" != "" {
             gen Y_res_XX = `1'
-            areg Y_res_XX `covariates' if `4' == 0, absorb(`2' `3')
+            egen G_XX = group(`2')
+            egen T_XX = group(`3')
+            reg Y_res_XX `covariates' i.G_XX i.T_XX if `4' == 0
+            mat reg_res = e(b)
             local sel = 0
             foreach v in `covariates' {
                 local sel = `sel' + 1
-                replace Y_res_XX = Y_res_XX - e(b)[1, `sel'] * `v'
+                replace Y_res_XX = Y_res_XX - reg_res[1, `sel'] * `v'
             }
             local varlist = subinstr("`varlist'", "`1'", "Y_res_XX", 1)
+            drop G_XX T_XX
         }
 
         sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag'
