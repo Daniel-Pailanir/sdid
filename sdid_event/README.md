@@ -28,7 +28,7 @@ net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid
 ## Syntax
 
 ```stata
-sdid_event Y G T D [if] [in] [, effects(integer 0) placebo(integer 0) disag vce(string) brep(integer 50)]
+sdid_event Y G T D [if] [in] [, effects(integer 0) placebo(integer 0) covariates(varlist) disag vce(string) brep(integer 50)]
 ```
 
 where:
@@ -42,6 +42,8 @@ As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binar
 ### Options
 + **effects**: number of event study effects to be reported.
 + **placebo**: number of placebo estimates to be computed.
++ **covariates**: adds covariates to the estimation routine. To this end, **sdid_event** implements the *projected* method from **sdid**, whereas the outcome is replaced by the residuals of the outcome variable from a TWFE regression on covariates, in the 
+sample of untreated and not-yet-treated units.
 + **disag**: reports estimates of the cohort-specific aggregated and event study estimators.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).
@@ -55,35 +57,17 @@ As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binar
 
 ## Example
 
-DGP with time-varying treatment effect:
-
 ```stata
-clear
-local GG = 19
-local TT = 20
-set seed 0
-set obs `=`GG' * `TT''
-
-gen G = mod(_n-1,`GG') + 1
-bys G: gen T = _n
-gen D = T > mod(G, 4) + 1 & G >= `GG'/4
-gen Y = uniform() * (1 + D + 10*D*T)
-
-sdid_event Y G T D
-```
-
-Generating a graph
-```stata
-mat res = e(H)
+webuse set www.damianclarke.net/stata/
+webuse quota_example.dta, clear
+keep if quotaYear==2002 | quotaYear==.
+sdid_event womparl country year quota, vce(placebo) brep(50) placebo(all)
+mat res = e(H)[2..27,1..5]
 svmat res
 gen id = _n - 1 if !missing(res1)
-
-* Turning the ATT line into the reference period
-foreach v of varlist res* {
-    replace `v' = 0 in 1
-}
-
-twoway (line res1 id, lc(black)) (rcap res3 res4 id, lc(black)) (scatter res1 id, mc(black)) , legend(off) title("sdid_event") xtitle("Relative time to treatment change") 
+replace id = 14 - _n if _n > 14 & !missing(res1)
+sort id
+twoway (rarea res3 res4 id, lc(gs10) fc(gs11%50)) (scatter res1 id, mc(blue) ms(d)), legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-)) xline(0, lc(black) lp(solid))
 ```
 
 The result should look like this:
