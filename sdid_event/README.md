@@ -72,7 +72,7 @@ twoway (rarea res3 res4 id, lc(gs10) fc(gs11%50)) (scatter res1 id, mc(blue) ms(
 
 The result should look like this:
 
-![sdid_event](https://github.com/DiegoCiccia/sdid/assets/71022390/08917647-08b6-4a52-a0f5-64170bee45ce)
+![Graph](https://github.com/user-attachments/assets/4a417ca3-9c86-45d5-80aa-ec82364a9f63)
 
 ## References 
 
