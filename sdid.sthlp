@@ -291,6 +291,8 @@ These will be passed to {it:yline()} internally, and hence any valid options acc
 {synopt:{cmd:e(adoption)}}A vector containing the list of all treatment adoption times{p_end}
 {synopt:{cmd:e(beta)}}A vector corresponding to coefficients estimated on covariates included as control (only retuned if the covariates option is used){p_end}
 {synopt:{cmd:e(series)}}control and treatment series containing time series trends of outcome means over time{p_end}
+{synopt:{cmd:e(series_resid)}}control and treatment series containing trends of outcome means over time based on residualised data
+(only provided if covariates are included with the optimized method) {p_end}
 {synopt:{cmd:e(difference)}}difference between treatment and control series over time{p_end}
 {synopt:{cmd:e(b)}}coefficient estimate returned for ATT{p_end}
 {synopt:{cmd:e(V)}}variance estimate returned for ATT{p_end}
