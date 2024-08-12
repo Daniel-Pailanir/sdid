@@ -57,6 +57,8 @@ sample of untreated and not-yet-treated units.
 
 ## Example
 
+Replication of Figure 4 from Clarke et al. (2023):
+
 ```stata
 webuse set www.damianclarke.net/stata/
 webuse quota_example.dta, clear
