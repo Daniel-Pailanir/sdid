@@ -667,6 +667,10 @@ if (length("`verbose'")>0) di as text "`reached_o'"
     mat coln difference = `3' `ColConTrDiff'
     ereturn matrix series series
     ereturn matrix difference difference
+    if "`control_opt'"=="2" {
+        mat coln series_r = `3' `ColConTr'
+        ereturn matrix series_resid series_r
+    }
 	
     if length("`graph'")!=0 {
         if (`co'>1000 & "`g1on'"=="g1on") {
@@ -841,9 +845,10 @@ mata:
         }
 		
         //matrix for control, treated and difference series (graph option)
-        Series = J(NT,1,.)
-        Diff = J(NT,1,.)
-        D_plot = J(Nco,1,.)
+        Series   = J(NT,1,.)
+        Series_r = J(NT,1,.)
+        Diff     = J(NT,1,.)
+        D_plot   = J(Nco,1,.)
 		
         //Adjust for controls in xysnth way
         //save original data for jackknife
@@ -1045,6 +1050,9 @@ mata:
                 //for line graph
                 Diff = (Diff, ((-lambda_o, J(1,yNtr,1/yNtr))*Y)')
                 Series = (Series, ((lambda_o)*Y0)', ((J(1,yNtr,1/yNtr))*Y1)')
+                Y0_r = select(Y,ytreat:==0)
+                Y1_r = select(Y,ytreat:==1)
+                Series_r = (Series_r, ((lambda_o)*Y0_r)', ((J(1,yNtr,1/yNtr))*Y1_r)')
                 //for scatter graph	
                 Npre_min = Npre + 1
                 D = (mean(Y[,Npre_min::cols(Y)]')' - (lambda_l*Y[,1::Npre]')', (J(yNco,1,0)\J(yNtr,1,1)))
@@ -1100,6 +1108,7 @@ mata:
         }
         if (inference==0 & controls==2) {
             Beta = (Beta \ trt')
+            Series_r[,1] = uniqrows(data[,4])
         }		
 		
         //jackknife
@@ -1247,11 +1256,12 @@ mata:
             st_matrix("omega" ,Omega)
             st_matrix("lambda",Lambda)
             st_matrix("tau"   ,tau)
-            st_matrix("beta"  ,Beta)	
+            st_matrix("beta"  ,Beta)
             st_matrix("series",Series)
             st_matrix("difference",Diff)
             st_matrix("dif_plot",D_plot)
-            st_matrix("trunitN",trunitN)
+            st_matrix("trunitN",trunitN)            
+            st_matrix("series_r",Series_r)
         }
         if (inference==1 & jk!=1) {
             tau_i = tau
