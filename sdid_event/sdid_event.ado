@@ -204,6 +204,7 @@ qui {
     gen T_g_XX = T_max - C_XX + 1 if ever_treated_XX == 1
     sum T_g_XX
     local L_g = r(max)
+    scalar L_g = `L_g'
 
     // Number of feasible placebo estimates
     sum C_XX if ever_treated_XX == 1
@@ -296,15 +297,15 @@ qui {
             }
         }
     }
+
     if "`placebo'" != "" {
         mat res = res \ res_pl
     }
     
-    scalar tot_est = scalar(effects) + scalar(placebo)
-    mat li res
-    mata: ATT_aggte(st_matrix("res"), st_matrix("t_weight"), st_numscalar("tot_est"), st_matrix("c_weight"))
+    //scalar tot_est = scalar(effects) + scalar(placebo)
+    mata: ATT_aggte(st_matrix("res"), st_matrix("t_weight"), st_numscalar("effects"), st_numscalar("placebo"), st_numscalar("L_g"), st_matrix("c_weight"))
+    mat li H
 }   
-
     local rown_effects "ATT"
     forv j = 1/`=effects' {
         local rown_effects "`rown_effects' Effect_`j'"
@@ -351,7 +352,7 @@ end
 
 cap mata: mata drop ATT_aggte()
 mata:
-void ATT_aggte(B, W, E, S) {
+void ATT_aggte(B, W, E, P, TE, S) {
     X = W' \ S' \ B
     H = J(rows(B), 3, .)
     for (j = 3; j <= rows(X); j++) {
@@ -365,7 +366,12 @@ void ATT_aggte(B, W, E, S) {
         H[j-2, 1] = (temp_mat[1, .] :/ sum(temp_mat[1, .])) * temp_mat[2, .]'
         H[j-2, 3] = sum(S[1..cols(temp_mat),.])
     }
-    st_matrix("H",  H[1..(1+E), .])    
+    if (P == 0) {
+        st_matrix("H",  H[1..(1+E), .])    
+    }
+    else {
+        st_matrix("H",  H[(1..(1+E),(2+TE)..(1+TE+P)), .])    
+    }
 }
 end
 
