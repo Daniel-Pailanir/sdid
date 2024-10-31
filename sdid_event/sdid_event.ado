@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string)]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string) vcov]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -104,6 +104,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             }
             di "|" _newline
 
+
             mata: SE_add(boot_res_XX, st_matrix("H_main"))
             local rownm: rown H_main
             mat rown H_SE = `rownm'
@@ -120,6 +121,27 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
 
             ereturn post b V
             ereturn matrix H = H_SE
+
+            if "`vcov'" != "" {
+                mata: st_matrix("vcov", variance(boot_res_XX[.,2..(st_numscalar("effects")+1)]))
+                local vcov_n = ""
+                forv j = 1/`=effects' {
+                    local vcov_n = "`vcov_n' Effect_`j'"
+                }
+                mat rown vcov = `vcov_n'
+                mat coln vcov = `vcov_n'
+                ereturn matrix vcov = vcov 
+                if `=placebo' > 0 {
+                    mata: st_matrix("vcov_pl", variance(boot_res_XX[.,(st_numscalar("effects")+2)..(st_numscalar("effects")+st_numscalar("placebo") + 1)]))
+                    local vcov_n = ""
+                    forv j = 1/`=placebo' {
+                        local vcov_n = "`vcov_n' Placebo_`j'"
+                    }
+                    mat rown vcov_pl = `vcov_n'
+                    mat coln vcov_pl = `vcov_n'
+                    ereturn matrix vcov_pl = vcov_pl 
+                }
+            }
 
             if `failed' > 0 {
                 di as result ""

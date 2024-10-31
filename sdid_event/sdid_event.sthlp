@@ -114,6 +114,13 @@ sample of untreated and not-yet-treated units.
 traditional DiD and {cmd:sc} for Synthetic Control.
 {p_end}
 
+{p 4 4}
+{cmd:vcov}: returns the variance-covariance matrix
+of the requested dynamic effects. If {cmd:placebo()}
+is requested, the option also returns the 
+variance-covariance matrix of the placebo estimates.
+{p_end}
+
 {marker examples}{...}
 {title:Examples}
 
@@ -181,8 +188,8 @@ Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/
 {title:Authors}
 
 {p 4 4}
-Diego Ciccia, Sciences Po. 
-{browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
+Diego Ciccia, Northwestern University, Kellogg School of Management. 
+{browse "mailto:diego.ciccia@kellogg.northwestern.edu":diego.ciccia@kellogg.northwestern.edu}
 {p_end}
 
 {p 4 4}
