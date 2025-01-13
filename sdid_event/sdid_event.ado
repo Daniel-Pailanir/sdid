@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string) vcov]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string) vcov sb boot_ci]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -104,8 +104,16 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             }
             di "|" _newline
 
+            {
+                if "`boot_ci'" == "" {
+                    mata: SE_add(boot_res_XX, st_matrix("H_main"))
+                }
+                else {
+                    mata: SE_add_emp(boot_res_XX, st_matrix("H_main"))
+                    di "CIs recovered from bootstrap distribution"
+                }
+            }
 
-            mata: SE_add(boot_res_XX, st_matrix("H_main"))
             local rownm: rown H_main
             mat rown H_SE = `rownm'
             mat coln H_SE = "Estimate" "SE" "LB CI" "UB CI" "Switchers"
@@ -155,6 +163,11 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         di "Disaggregated ATTs - Cohort level"
         matlist res_main
         ereturn matrix H_c = res_main
+    }
+
+    if "`sb'" != "" {
+        mata: st_matrix("boot_res", boot_res_XX)
+        ereturn matrix sb = boot_res
     }
 
     cap drop *_XX
@@ -405,6 +418,29 @@ void SE_add(V, B) {
         H[j, 2] = sqrt(variance(V[.,j]))
         H[j, 3] = H[j, 1] - 1.96 * H[j, 2]
         H[j, 4] = H[j, 1] + 1.96 * H[j, 2]
+    }
+    st_matrix("H_SE", H)
+}
+end
+
+cap mata: mata drop SE_add_emp()
+mata:
+void SE_add_emp(V, B) {
+    H = B[,1], J(rows(B), 3, .), B[, 3]
+    for (j = 1; j <= rows(B); j++) {
+        H[j, 2] = sqrt(variance(V[.,j]))
+        V_nm = select(V[.,j], V[.,j]:~= .)
+        K = sort(V_nm,1), ((1.. rows(V_nm))/rows(V_nm))'
+        LT = sort(select(K, K[.,2]:<=0.025), 1) 
+        if (rows(LT) == 0) {
+            LT = K[1,.]
+        }
+        RT = sort(select(K, K[.,2]:>=0.975), 1)
+        if (rows(RT) == 0) {
+            RT = K[rows(K),.]
+        }
+        H[j, 3] = LT[rows(LT), 1]
+        H[j, 4] = RT[1,1]
     }
     st_matrix("H_SE", H)
 }

@@ -11,6 +11,12 @@ The user can also request cohort-specific aggregated and event study estimates v
 
 This package depends on `sdid` and `unique`, which can be both installed from SSC.
 
+## News
+
++ Jan 12, 2025 - Added coverage testing options `sb` and `boot_ci`. 
+
++ Oct 31, 2024 - Added bootstrap variance-covariance matrix to ereturn().
+
 ## Setup
 
 ### SSC
@@ -48,6 +54,9 @@ sample of untreated and not-yet-treated units.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).
 + **method(** sdid | did | sc **)**: selects estimation method as in **sdid**.
++ **vcov**: returns the variance-covariance matrix of the requested dynamic effects. If **placebo()** is requested, the option also returns the variance-covariance matrix of the placebo estimates.
++ **sb**: returns a matrix with the values of the requested estimates across all bootstrap repetitions.
++ **boot_ci**: by default, 95% CIs are computed using a normal approximation for the bootstrap distribution of the estimates. That is, the reported CI for coefficient $b_i$ is $(LB_i, UB_i) = \hat{b}_i \pm 1.96 \hat{sigma}_i$, where $\hat{sigma}_i$ is the empirical standard deviation. With this option on, the reported CIs are computed using the empirical CDF of the estimates. That is, $(LB_i, UB_i) = (\max_{b_i \in \tilde{B_i}: \hat{F}(b_i)\leq 0.025}, \min_{b_i \in \tilde{B_i}: \hat{F}(b_i)\geq 0.975})$, where $\tilde{B_i}$ is the set of realized values of $b_i$, and $\hat{F}(.)$ is the empirical CDF of $b_i$.
 
 ## Output
 

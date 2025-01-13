@@ -23,7 +23,10 @@
 {cmd:disag}
 {cmd:vce(}{it:string}{cmd:)}
 {cmd:brep(}{it:integer} 50{cmd:)}
-{cmd:method(}{it:string}{cmd:)]}
+{cmd:method(}{it:string}{cmd:)}
+{cmd:vcov}
+{cmd:sb}
+{cmd:boot_ci]}
 {p_end}
 
 {p 4 4}
@@ -119,6 +122,19 @@ traditional DiD and {cmd:sc} for Synthetic Control.
 of the requested dynamic effects. If {cmd:placebo()}
 is requested, the option also returns the 
 variance-covariance matrix of the placebo estimates.
+{p_end}
+
+{p 4 4}
+{cmd:sb}: returns a matrix with the values of 
+the requested estimates across all bootstrap repetitions.
+{p_end}
+
+{p 4 4}
+{cmd:boot_ci}: by default, 95% CIs are computed 
+using a normal approximation for the bootstrap 
+distribution of the estimates. With this option on, 
+the reported CIs are computed using the empirical 
+CDF. 
 {p_end}
 
 {marker examples}{...}
