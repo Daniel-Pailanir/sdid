@@ -56,7 +56,7 @@ sample of untreated and not-yet-treated units.
 + **method(** sdid | did | sc **)**: selects estimation method as in **sdid**.
 + **vcov**: returns the variance-covariance matrix of the requested dynamic effects. If **placebo()** is requested, the option also returns the variance-covariance matrix of the placebo estimates.
 + **sb**: returns a matrix with the values of the requested estimates across all bootstrap repetitions.
-+ **boot_ci**: by default, 95% CIs are computed using a normal approximation for the bootstrap distribution of the estimates. That is, the reported CI for coefficient $b_i$ is $(LB_i, UB_i) = \hat{b}_i \pm 1.96 \hat{sigma}_i$, where $\hat{sigma}_i$ is the empirical standard deviation. With this option on, the reported CIs are computed using the empirical CDF of the estimates. That is, $(LB_i, UB_i) = (\max_{b_i \in \tilde{B_i}: \hat{F}(b_i)\leq 0.025}, \min_{b_i \in \tilde{B_i}: \hat{F}(b_i)\geq 0.975})$, where $\tilde{B_i}$ is the set of realized values of $b_i$, and $\hat{F}(.)$ is the empirical CDF of $b_i$.
++ **boot_ci**: by default, 95% CIs are computed using a normal approximation for the bootstrap distribution of the estimates. That is, the reported CI for coefficient $b\_{i}$ is $(LB\_{i}, UB\_{i}) = \hat{b}\_{i} \pm 1.96 \hat{\sigma}\_{i}$, where $\hat{\sigma}\_{i}$ is the empirical standard deviation. With this option on, the reported CIs are computed using the empirical CDF of the estimates. That is, $(LB\_{i}, UB\_{i}) = (\max \lbrace b\_{i} \in \tilde{B\_{i}}: \hat{F}(b\_{i})\leq 0.025\rbrace, \min \lbrace b\_{i} \in \tilde{B\_{i}}: \hat{F}(b\_{i})\geq 0.975 \rbrace)$, where $\tilde{B\_{i}}$ is the set of realized values of $b\_{i}$, and $\hat{F}(.)$ is the empirical CDF of $b\_{i}$.
 
 ## Output
 
