@@ -36,7 +36,7 @@ net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid
 ## Syntax
 
 ```stata
-sdid_event Y G T D [if] [in] [, effects(integer 0) placebo(integer 0) covariates(varlist) disag vce(string) brep(integer 50)]
+sdid_event Y G T D [if] [in] [, opts]
 ```
 
 where:
