@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string) vcov sb boot_ci]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string) vcov sb boot_ci combine(string)]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -43,7 +43,8 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             drop G_XX T_XX
         }
 
-        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag'
+
+        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'")
         mat res_main = res
         mat H_main = H
 
@@ -62,11 +63,48 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
                 exit
             }
         }
+
+        if "`combine'" != "" {
+            scalar tot_combine = length("`combine'") - length(subinstr("`combine'", ";", "", .)) + 1
+            local arg_combine = "`combine';"
+
+            mat H_cb = J(scalar(tot_combine), 3, .)
+            local rown_b = ""
+            forv k = 1/`=tot_combine' {
+                local v_combine_`k' = substr("`arg_combine'", 1, strpos("`arg_combine'", ";")-1)
+                local arg_combine = substr("`arg_combine'", strpos("`arg_combine'", ";") + 1, .)
+
+                local t_k = 0
+                foreach s in `v_combine_`k'' {
+                    local t_k = `t_k' + 1
+                }
+
+                mat cset_`k' = J(`t_k', 3, .)
+                local t_k = 1
+                foreach s in `v_combine_`k'' {
+                    mat cset_`k'[`t_k', 1] = `s'
+                    mat cset_`k'[`t_k', 2] = H[`s' + 1, 1]
+                    mat cset_`k'[`t_k', 3] = H[`s' + 1, 3]
+                    local t_k = `t_k' + 1
+                }
+
+                mata: cbm = st_matrix("cset_`k'")
+                mata: st_numscalar("cbn", sum(cbm[., 3]))
+                mata: st_numscalar("cbt", (cbm[., 2]' * cbm[, 3])/sum(cbm[., 3]))
+
+                mat H_cb[`k', 1] = scalar(cbt)
+                mat H_cb[`k', 3] = scalar(cbn)
+                local rown_b = "`rown_b' Cmb_Effect_`k'"
+            }
+            mat rown H_cb = `rown_b'
+            mat coln H_cb = "Estimate" "SE" "Switchers"
+        }
+
     }
     di as text "`m_`method''"
 
     if "`vce'" == "off" {
-        matlist H_main
+        matlist H_main, under
 
         local rownm: rown H_main
         mata: b = (st_matrix("H_main")[.,1])'
@@ -117,7 +155,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             local rownm: rown H_main
             mat rown H_SE = `rownm'
             mat coln H_SE = "Estimate" "SE" "LB CI" "UB CI" "Switchers"
-            matlist H_SE       
+            matlist H_SE, under
 
             mata: b = (st_matrix("H_SE")[.,1])'
             mata: V = diag((st_matrix("H_SE")[.,2]):^2)
@@ -155,13 +193,48 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
                 di as result ""
                 di as result "WARNING: Restarted `failed' bootstrap run(s) with no treated or control groups."
             }
+
+            if "`combine'" != "" {
+                mata: boot_res_cb_XX = J(rows(boot_res_XX), st_numscalar("tot_combine"), 0)
+                forv k = 1/`=tot_combine' {
+                    scalar cbid = `k'
+                    scalar cbtw = H_cb[`k', 3]
+                    local t_k = 1
+                    foreach s in `v_combine_`k'' {
+                        scalar id = `s'
+                        scalar cbw = cset_`k'[`t_k', 3]
+                        mata: boot_res_cb_XX[., st_numscalar("cbid")] = boot_res_cb_XX[., st_numscalar("cbid")] + boot_res_XX[., st_numscalar("id") + 1] * st_numscalar("cbw")
+                        local t_k = `t_k' + 1
+                    }
+                    mata: boot_res_cb_XX[., st_numscalar("cbid")] = boot_res_cb_XX[., st_numscalar("cbid")] / st_numscalar("cbtw")
+                }
+
+                {
+                    if "`boot_ci'" == "" {
+                        mata: SE_add_cb(boot_res_cb_XX, st_matrix("H_cb"))
+                    }
+                    else {
+                        mata: SE_add_cb_emp(boot_res_cb_XX, st_matrix("H_cb"))
+                    }
+                }
+                
+                mat H_cb = H_cb[.,1..1], H_cb_SE[.,2..5]
+                mat coln H_cb = "Estimate" "SE" "LB CI" "UB CI" "Switchers"
+            }
+    }
+
+    if "`combine'" != "" {
+        di ""
+        di "Combined ATTs"
+        matlist H_cb, under
+        ereturn matrix H_comb = H_cb
     }
 
 
     if "`disag'" != "" {
         di ""
         di "Disaggregated ATTs - Cohort level"
-        matlist res_main
+        matlist res_main, under
         ereturn matrix H_c = res_main
     }
 
@@ -175,7 +248,7 @@ end
 
 cap program drop sdid_event_core
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string)]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string)]
 preserve
 qui {
 
@@ -270,7 +343,7 @@ qui {
         }
     }
 
-    sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method') mattitles
+    sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method')
     mata: mata set matastrict off
     mata: omega = st_matrix("e(omega)")
     mata: lambda = st_matrix("e(lambda)")
@@ -339,8 +412,9 @@ qui {
     
     //scalar tot_est = scalar(effects) + scalar(placebo)
     mata: ATT_aggte(st_matrix("res"), st_matrix("t_weight"), st_numscalar("effects"), st_numscalar("placebo"), st_numscalar("L_g"), st_matrix("c_weight"))
-    mat li H
+
 }   
+
     local rown_effects "ATT"
     forv j = 1/`=effects' {
         local rown_effects "`rown_effects' Effect_`j'"
@@ -359,6 +433,7 @@ qui {
         mat rown res = `rown' 
         mat coln res = `coln'
     }
+
 restore
 end
 
@@ -415,7 +490,7 @@ mata:
 void SE_add(V, B) {
     H = B[,1], J(rows(B), 3, .), B[, 3]
     for (j = 1; j <= rows(B); j++) {
-        H[j, 2] = sqrt(variance(V[.,j]))
+        H[j, 2] = sqrt(variance(V)[j,j])
         H[j, 3] = H[j, 1] - 1.96 * H[j, 2]
         H[j, 4] = H[j, 1] + 1.96 * H[j, 2]
     }
@@ -428,7 +503,7 @@ mata:
 void SE_add_emp(V, B) {
     H = B[,1], J(rows(B), 3, .), B[, 3]
     for (j = 1; j <= rows(B); j++) {
-        H[j, 2] = sqrt(variance(V[.,j]))
+        H[j, 2] = sqrt(variance(V)[j,j])
         V_nm = select(V[.,j], V[.,j]:~= .)
         K = sort(V_nm,1), ((1.. rows(V_nm))/rows(V_nm))'
         LT = sort(select(K, K[.,2]:<=0.025), 1) 
@@ -443,5 +518,41 @@ void SE_add_emp(V, B) {
         H[j, 4] = RT[1,1]
     }
     st_matrix("H_SE", H)
+}
+end
+
+cap mata: mata drop SE_add_cb()
+mata:
+void SE_add_cb(V, B) {
+    H = B[,1], J(rows(B), 3, .), B[, 3]
+    for (j = 1; j <= rows(B); j++) {
+        H[j, 2] = sqrt(variance(V)[j,j])
+        H[j, 3] = H[j, 1] - 1.96 * H[j, 2]
+        H[j, 4] = H[j, 1] + 1.96 * H[j, 2]
+    }
+    st_matrix("H_cb_SE", H)
+}
+end
+
+cap mata: mata drop SE_add_cb_emp()
+mata:
+void SE_add_cb_emp(V, B) {
+    H = B[,1], J(rows(B), 3, .), B[, 3]
+    for (j = 1; j <= rows(B); j++) {
+        H[j, 2] = sqrt(variance(V)[j,j])
+        V_nm = select(V[.,j], V[.,j]:~= .)
+        K = sort(V_nm,1), ((1.. rows(V_nm))/rows(V_nm))'
+        LT = sort(select(K, K[.,2]:<=0.025), 1) 
+        if (rows(LT) == 0) {
+            LT = K[1,.]
+        }
+        RT = sort(select(K, K[.,2]:>=0.975), 1)
+        if (rows(RT) == 0) {
+            RT = K[rows(K),.]
+        }
+        H[j, 3] = LT[rows(LT), 1]
+        H[j, 4] = RT[1,1]
+    }
+    st_matrix("H_cb_SE", H)
 }
 end

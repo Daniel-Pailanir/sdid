@@ -24,6 +24,7 @@
 {cmd:vce(}{it:string}{cmd:)}
 {cmd:brep(}{it:integer} 50{cmd:)}
 {cmd:method(}{it:string}{cmd:)}
+{cmd:combine(}{it:string}{cmd:)}
 {cmd:vcov}
 {cmd:sb}
 {cmd:boot_ci]}
@@ -116,6 +117,19 @@ sample of untreated and not-yet-treated units.
 {cmd:sdid} (default) for Synthetic DiD, {cmd:did} for
 traditional DiD and {cmd:sc} for Synthetic Control.
 {p_end}
+
+{p 4 4}
+{cmd:combine()}: grouping multiple event study 
+coefficients under a single estimate. For instance,
+with year-group data over 6 years, one could be interested in
+comparing differential outcomes in three-year windows 
+after the start of the treatment. This can be achieved
+by {cmd:combine(1 2 3; 4 5 6)}. This option returns the 
+corresponding estimate, plus standard errors, CIs and
+number of treated units x post treatment periods in the
+requested windows.
+{p_end}
+
 
 {p 4 4}
 {cmd:vcov}: returns the variance-covariance matrix
