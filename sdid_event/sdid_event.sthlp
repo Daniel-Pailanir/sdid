@@ -23,7 +23,11 @@
 {cmd:disag}
 {cmd:vce(}{it:string}{cmd:)}
 {cmd:brep(}{it:integer} 50{cmd:)}
-{cmd:method(}{it:string}{cmd:)]}
+{cmd:method(}{it:string}{cmd:)}
+{cmd:combine(}{it:string}{cmd:)}
+{cmd:vcov}
+{cmd:sb}
+{cmd:boot_ci]}
 {p_end}
 
 {p 4 4}
@@ -114,6 +118,39 @@ sample of untreated and not-yet-treated units.
 traditional DiD and {cmd:sc} for Synthetic Control.
 {p_end}
 
+{p 4 4}
+{cmd:combine()}: grouping multiple event study 
+coefficients under a single estimate. For instance,
+with year-group data over 6 years, one could be interested in
+comparing differential outcomes in three-year windows 
+after the start of the treatment. This can be achieved
+by {cmd:combine(1 2 3; 4 5 6)}. This option returns the 
+corresponding estimate, plus standard errors, CIs and
+number of treated units x post treatment periods in the
+requested windows.
+{p_end}
+
+
+{p 4 4}
+{cmd:vcov}: returns the variance-covariance matrix
+of the requested dynamic effects. If {cmd:placebo()}
+is requested, the option also returns the 
+variance-covariance matrix of the placebo estimates.
+{p_end}
+
+{p 4 4}
+{cmd:sb}: returns a matrix with the values of 
+the requested estimates across all bootstrap repetitions.
+{p_end}
+
+{p 4 4}
+{cmd:boot_ci}: by default, 95% CIs are computed 
+using a normal approximation for the bootstrap 
+distribution of the estimates. With this option on, 
+the reported CIs are computed using the empirical 
+CDF. 
+{p_end}
+
 {marker examples}{...}
 {title:Examples}
 
@@ -181,8 +218,8 @@ Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/
 {title:Authors}
 
 {p 4 4}
-Diego Ciccia, Sciences Po. 
-{browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
+Diego Ciccia, Northwestern University, Kellogg School of Management. 
+{browse "mailto:diego.ciccia@kellogg.northwestern.edu":diego.ciccia@kellogg.northwestern.edu}
 {p_end}
 
 {p 4 4}

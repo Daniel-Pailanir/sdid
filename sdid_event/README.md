@@ -11,6 +11,14 @@ The user can also request cohort-specific aggregated and event study estimates v
 
 This package depends on `sdid` and `unique`, which can be both installed from SSC.
 
+## News
+
++ Feb 15, 2025 - Added `combine` option. Removed mattitles from internal `sdid` call. Fixed missing coefficients/variance bug.
+
++ Jan 12, 2025 - Added coverage testing options `sb` and `boot_ci`. 
+
++ Oct 31, 2024 - Added bootstrap variance-covariance matrix to ereturn().
+
 ## Setup
 
 ### SSC
@@ -28,7 +36,7 @@ net install sdid_event, from("https://raw.githubusercontent.com/DiegoCiccia/sdid
 ## Syntax
 
 ```stata
-sdid_event Y G T D [if] [in] [, effects(integer 0) placebo(integer 0) covariates(varlist) disag vce(string) brep(integer 50)]
+sdid_event Y G T D [if] [in] [, opts]
 ```
 
 where:
@@ -48,6 +56,10 @@ sample of untreated and not-yet-treated units.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).
 + **method(** sdid | did | sc **)**: selects estimation method as in **sdid**.
++ **combine()**: grouping multiple event study coefficients under a single estimate. For instance, with year-group data over 6 years, one could be interested in comparing differential outcomes in three-year windows after the start of the treatment. This can be achieved by **combine(1 2 3; 4 5 6)**. This option returns the corresponding estimate, plus standard errors, CIs and number of treated units x post treatment periods in the requested windows.
++ **vcov**: returns the variance-covariance matrix of the requested dynamic effects. If **placebo()** is requested, the option also returns the variance-covariance matrix of the placebo estimates.
++ **sb**: returns a matrix with the values of the requested estimates across all bootstrap repetitions.
++ **boot_ci**: by default, 95% CIs are computed using a normal approximation for the bootstrap distribution of the estimates. That is, the reported CI for coefficient $b\_{i}$ is $(LB\_{i}, UB\_{i}) = \hat{b}\_{i} \pm 1.96 \hat{\sigma}\_{i}$, where $\hat{\sigma}\_{i}$ is the empirical standard deviation. With this option on, the reported CIs are computed using the empirical CDF of the estimates. That is, $(LB\_{i}, UB\_{i}) = (\max \lbrace b\_{i} \in \tilde{B\_{i}}: \hat{F}(b\_{i})\leq 0.025\rbrace, \min \lbrace b\_{i} \in \tilde{B\_{i}}: \hat{F}(b\_{i})\geq 0.975 \rbrace)$, where $\tilde{B\_{i}}$ is the set of realized values of $b\_{i}$, and $\hat{F}(.)$ is the empirical CDF of $b\_{i}$.
 
 ## Output
 
