@@ -545,7 +545,7 @@ if length("`returnweights'")!=0 {
         }
         local ++i
     }
-    ren c `3'
+    varabbrev ren c `3'
     tempfile dlambda
     qui save `dlambda'
     restore
@@ -561,7 +561,7 @@ if length("`returnweights'")!=0 {
 	    ren c`i' `generate'omega`t'
         local ++i
     }
-    ren c `2'
+    varabbrev ren c `2'
     tempfile domega
     qui save `domega'
     restore
