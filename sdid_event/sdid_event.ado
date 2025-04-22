@@ -32,7 +32,8 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             gen Y_res_XX = `1'
             egen G_XX = group(`2')
             egen T_XX = group(`3')
-            reg Y_res_XX `covariates' i.G_XX i.T_XX if `4' == 0
+            // Residualize Y on covariates, T and G FE on the sample of never-treated
+            reg Y_res_XX `covariates' i.G_XX i.T_XX if ever_treated_XX == 0
             mat reg_res = e(b)
             local sel = 0
             foreach v in `covariates' {
