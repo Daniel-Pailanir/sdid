@@ -1,7 +1,7 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 2.0.2 June 28, 2024
-*! Author: Pailañir Daniel, Clarke Damian
-*! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl
+*! Version 2.0.3 May 5, 2025
+*! Author: Pailañir Daniel, Clarke Damian, Ciccia Diego
+*! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl, diego.ciccia@kellogg.northwestern.edu
 
 /*
 Versions
@@ -13,6 +13,7 @@ Versions
 2.0.0 Feb 24, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife) [SSC]
 */
 
+cap program drop sdid
 program sdid, eclass
 version 13.0
 
@@ -41,6 +42,7 @@ version 13.0
     verbose
     XLINE_opts(string asis)
     YLINE_opts(string asis)
+    _not_yet
     ]
     ;
 #delimit cr  
@@ -70,6 +72,10 @@ else {
 
 if !inlist("`vce'", "bootstrap", "jackknife", "placebo","noinference") {
     dis as error "vce() must be one of bootstrap, jackknife, placebo or noinference."
+    exit 198
+}
+if ("`_not_yet'" != "" & "`covariates'" == "") {
+    dis as error "_not_yet can only be used in combination with covariates(, projected)"
     exit 198
 }
 
@@ -233,12 +239,19 @@ if length("`graph'")!=0&`stringvar'==1 {
 }
 
 local control_opt = 0
+local nyt = 0
 if "`covariates'"!="" {
     _parse_X `covariates'
     if "`r(ctype)'"=="optimized" local control_opt = 2
     if "`r(ctype)'"=="projected" local control_opt = 1
     local conts = r(controls)
     local contname = r(controls)
+
+    if ("`_not_yet'" != "" & `control_opt' != 1) {
+        dis as error "_not_yet can only be used in combination with covariates(, projected)"
+        exit 198
+    }
+    if "`_not_yet'" != "" local nyt = 1
 	
     foreach var of varlist `contname' {
         qui sum `var'
@@ -287,7 +300,7 @@ if "`method'"=="sc"   local m=3
 
 **IDs (`2') go in twice here because we are not resampling
 mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
+mata: ATT = synthdid(data, 0, ., ., `control_opt', `jk', `m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter', `nyt')
 mata: LAMBDA = st_matrix("lambda")
 mata: OMEGA  = st_matrix("omega")
 
@@ -383,7 +396,7 @@ if "`vce'"=="bootstrap" {
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
             mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
-            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
+            mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter', `nyt')
 			
             *taus for adoption times
             mata: ty = uniqrows(select(data[,7], data[,5]:==1))
@@ -455,7 +468,7 @@ else if "`vce'"=="placebo" {
         mata: indicator=smerge(psam_id, (ori_id, ori_pos))
         mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
         mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter')
+        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter', `nyt')
 
         *taus for adoption times
         mata: ty = uniqrows(select(data[,7], data[,5]:==1))
@@ -813,6 +826,9 @@ end
 *------------------------------------------------------------------------------*
 * (8) Mata functions
 *------------------------------------------------------------------------------*
+** cap drop mata functions (debug utility)
+cap mata: mata clear
+
 *Main function (synthdid)
 *Below assumes data is a matrix with:
 * (1) y variable
@@ -824,7 +840,7 @@ end
 * (7) indicator of year treated (if treated)
 * (8+) any controls
 mata:
-    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk, mt, ELambda, EOmega, MinDec, MaxIter) {
+    real scalar synthdid(matrix data, inference, OMEGA, LAMBDA, controls, jk, mt, ELambda, EOmega, MinDec, MaxIter, NotYet) {
         data  = sort(data, (6,2,4))
         units = panelsetup(data,2)
         NT = panelstats(units)[,3]
@@ -854,7 +870,7 @@ mata:
         //save original data for jackknife
         data_ori=data
         if (cols(data)>7 & controls==1) {
-            projected(data, Yprojected, Beta)
+            projected(data, Yprojected, Beta, NotYet)
             data[,1] = Yprojected
         }
         
@@ -1386,9 +1402,9 @@ end
 
 *projected covariates
 mata:
-    void projected(Y, Yprojected, Beta) {
+    void projected(Y, Yprojected, Beta, NotYet) {
         K = cols(Y)
-        cdat = Y[selectindex(Y[,6]:==0),(1,2,4,8..K)]
+        cdat = Y[selectindex(Y[,6 - NotYet]:==0),(1,2,4,8..K)]
         cdat = select(cdat, rowmissing(cdat):==0)
         X = cdat[.,4::cols(cdat)]
         NX = cols(X)
