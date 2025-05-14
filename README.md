@@ -35,6 +35,7 @@ sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method
 + seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
 + covariates(  varlist [, method]): covariates included to adjust Y.  A varlist of covariates should be included, and optionally an option for the method used to adjust.  This can be "optimized" in which case it follows the method proposed by Arkhangelsky et al., or "projected", in which case it follows the procedure proposed by Kranz, 2021 (xsynth in R).  Where method is not specified, optimized is used as default.  Kranz has shown that the projected method is preferable in a number of circumstances.  In this implementation, the projected method is often considerably faster.
++ _not_yet: If covariates are included with the "projected" method, allows for projections to be based off all not yet treated units, rather than units which are never treated.
 + zeta_lambda: Define the regularization term $\zeta$. Default is 1e-6.
 + zeta_omega: Define the regularization term $\zeta$. Default is $(N_{tr} T_{post})^{1/4}$ for SDID estimator and 1e-6 for the rest of estimators.
 + min_dec: Define the MinDec term in $(\text{MinDec}\times \sigma_t)^2$. Is a stopping criteria for our weight estimator. Default is 1e-5.
