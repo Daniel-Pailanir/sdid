@@ -35,6 +35,7 @@ Optional {it:type} can be specified, as either "optimized" (the default) or "pro
 {synopt :{opt msize(markersizestyle)}}{it: markersizestyle} allows you to modify the size of the marker for graph 1.{p_end}
 {synopt :{opt unstandardized}} In the case of "optimized" covariates, by default covariates will be standardized as z-scores,
 unless the unstandardized option is specified.{p_end}
+{synopt :{opt _not_yet}} If covariates are included with the "projected" method, allows for projections to be based off all not yet treated units.{p_end}
 {synopt :{opt mattitles}} Requests that weights returned in matrices are accompanied by the name
 of the groupvar corresponding to each weight.{p_end}
 {synopt :{opt verbose}} Requests additional output, such as warnings messages if the number of iterations indicated in max_iter is reached.{p_end}
@@ -216,6 +217,12 @@ Optionally, a stub can be specified, in which case this will be prepended to exp
 {opt unstandardized} if controls are included and the "optimized" method is specified, controls will be standardized as Z-scores prior to finding optimal weights. This avoids problems with optimization when control variables have very
 high dispersion. If unstandardized is specified, controls will simply be entered in their original units.
 This option should be used with care.
+
+{pstd}
+{p_end}
+{phang}
+{opt _not_yet} if controls are included and the "projected" method is specified, by default controls will be projected out from estimates based on never treated units only.
+If _not_yet is indicated, this projection will also incorporate observations which are eventually treated, but for which treatment has not yet been switched on.
 
 {pstd}
 {p_end}
