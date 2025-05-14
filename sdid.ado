@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 2.0.3 May 5, 2025
+*! Version 2.0.3 May 14, 2025
 *! Author: Pailañir Daniel, Clarke Damian, Ciccia Diego
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl, diego.ciccia@kellogg.northwestern.edu
 
@@ -11,6 +11,7 @@ Versions
 1.3.0 Jul 13, 2022: Addition of DiD and SC methods
 1.4.0 Jan 15, 2023: Standard error for each adoption (Bootstrap only)
 2.0.0 Feb 24, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife) [SSC]
+2.0.3 May 14, 2025: Updates to incorporate additional covariate options
 */
 
 cap program drop sdid
