@@ -1142,7 +1142,7 @@ mata:
                 data_aux = select(data_ori, data_ori[,3]:!=drp)
                 //projected adjustment
                 if (cols(data_aux)>7 & controls==1) {
-                    projected(data_aux, Yprojected, Beta_jk)
+                    projected(data_aux, Yprojected, Beta_jk, NotYet)
                     data_aux[,1] = Yprojected
                 }	
                 
