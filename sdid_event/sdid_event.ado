@@ -1,9 +1,12 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string) vcov sb boot_ci combine(string)]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string asis) vcov sb boot_ci combine(string) _not_yet unstandardized]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
+
+    // Cleanup any existing temporary variables from previous failed runs
+    cap drop *_XX
 
     qui {
 
@@ -28,32 +31,17 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         sort `2' `3'
         bys `2': egen ever_treated_XX = max(`4')
 
-        if "`covariates'" != "" {
-            gen Y_res_XX = `1'
-            egen G_XX = group(`2')
-            egen T_XX = group(`3')
-            // Residualize Y on covariates, T and G FE on the sample of not-yet-treated
-            //reg Y_res_XX `covariates' i.G_XX i.T_XX if ever_treated_XX == 0
-            reg Y_res_XX `covariates' i.G_XX i.T_XX if `4' == 0
-            mat reg_res = e(b)
-            local sel = 0
-            foreach v of varlist `covariates' {
-                local sel = `sel' + 1
-                replace Y_res_XX = Y_res_XX - reg_res[1, `sel'] * `v'
-            }
-            local varlist = subinstr("`varlist'", "`1'", "Y_res_XX", 1)
-            drop G_XX T_XX
-        }
-
-
-        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'")
+        // Main estimation call - pass touse variable to sdid_event_core
+        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') ///
+            method(`method') `disag' combine("`combine'") ///
+            covariates(`covariates') `_not_yet' `unstandardized'
         mat res_main = res
         mat H_main = H
 
         if "`vce'" == "" local vce "bootstrap"
         if !inlist("`vce'", "off", "bootstrap", "placebo") {
             di as err "Syntax error in vce option."
-            di as err "Only {cmd:off}, {cmd:placebo} and {cmd:bootstrap} (dafalt) allowed."
+            di as err "Only {cmd:off}, {cmd:placebo} and {cmd:bootstrap} (default) allowed."
             exit
         }
         if "`vce'" == "placebo" {
@@ -130,7 +118,10 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             local counter = 1/50
             scalar r_XX = 1
             while r_XX <= breps {
-                qui cap sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') 
+                // Pass touse variable to bootstrap iterations
+                qui cap sdid_event_core `varlist' if `touse', effects(`effects') ///
+                    placebo(`placebo') method(`method') sampling(`vce') ///
+                    covariates(`covariates') `_not_yet' `unstandardized'
                 if _rc == 0 {
                     mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
                     mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
@@ -232,7 +223,6 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         ereturn matrix H_comb = H_cb
     }
 
-
     if "`disag'" != "" {
         di ""
         di "Disaggregated ATTs - Cohort level"
@@ -245,22 +235,37 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         ereturn matrix sb = boot_res
     }
 
+    // Cleanup temporary variables (including error handling)
     cap drop *_XX
 end
 
-cap program drop sdid_event_core
+cap program drop sdid_event_core  
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string)]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) covariates(string asis) _not_yet unstandardized]
 preserve
 qui {
 
-    keep `if'
+    // Use the if/in conditions properly
+    if "`if'`in'" != "" {
+        keep `if' `in'
+    }
     sort `2' `3'
     gen Y_XX = `1'
     egen G_XX = group(`2')
     egen T_XX = group(`3')
     gen D_XX = `4'
-    keep Y_XX D_XX G_XX T_XX ever_treated_XX
+    
+    // Keep covariate variables if specified
+    if "`covariates'" != "" {
+        // Parse covariates to get variable list
+        local 0 `covariates'
+        syntax varlist [, *] 
+        local cov_vars `varlist'
+        keep Y_XX D_XX G_XX T_XX ever_treated_XX `cov_vars'
+    }
+    else {
+        keep Y_XX D_XX G_XX T_XX ever_treated_XX
+    }
 
     if "`sampling'" != "" {
         if "`sampling'" == "bootstrap" {
@@ -345,7 +350,134 @@ qui {
         }
     }
 
-    sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method')
+    // Complex reconstruction approach - call sdid with covariates then extract adjustment
+    if "`covariates'" != "" {
+        // Parse covariate method
+        local 0 `covariates'
+        syntax varlist [, *] 
+        local cov_vars `varlist'
+        local cov_method "`options'"
+        if "`cov_method'" == "" local cov_method "optimized"
+        
+        // Error handling for unsupported methods
+        if !inlist("`cov_method'", "projected", "optimized") {
+            di as error "Covariate method must be 'projected' or 'optimized'"
+            exit 198
+        }
+        
+        if "`cov_method'" == "projected" {
+            // Build sdid options for projected method
+            local sdid_options "vce(noinference) method(`method') covariates(`covariates')"
+            if "`_not_yet'" != "" {
+                local sdid_options "`sdid_options' _not_yet"
+            }
+            if "`unstandardized'" != "" {
+                local sdid_options "`sdid_options' unstandardized"
+            }
+            
+            // Call sdid to get beta coefficients
+            sdid Y_XX G_XX T_XX D_XX, `sdid_options'
+            
+            // Extract beta coefficients and apply manual adjustment
+            matrix beta_coefs = e(beta)
+            
+            // Apply projection manually
+            local beta_idx = 1
+            foreach var of local cov_vars {
+                replace Y_XX = Y_XX - beta_coefs[`beta_idx', 1] * `var'
+                local beta_idx = `beta_idx' + 1
+            }
+            
+            // Re-run sdid with the adjusted outcome
+            sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method')
+        }
+        else if "`cov_method'" == "optimized" {
+            // For optimized method, we need to manually replicate the residualization
+            // that sdid does internally since we can't easily extract observation-level residuals
+            
+            // Call sdid first to get the optimization parameters
+            local sdid_options "vce(noinference) method(`method') covariates(`covariates')"
+            if "`_not_yet'" != "" {
+                local sdid_options "`sdid_options' _not_yet"
+            }
+            if "`unstandardized'" != "" {
+                local sdid_options "`sdid_options' unstandardized"
+            }
+            
+            sdid Y_XX G_XX T_XX D_XX, `sdid_options'
+            
+            // Check if series_resid matrix is available (newer versions of sdid)
+            cap matrix series_resid = e(series_resid)
+            if _rc == 0 {
+                // Use the fact that sdid returns residualized series in e(series_resid)
+                // We can construct residualized individual outcomes by using the difference
+                // between original and residualized series
+                
+                matrix orig_series = e(series)
+                matrix resid_series = e(series_resid)
+                
+                // Create time-specific adjustment factors
+                tempvar time_adj
+                gen `time_adj' = 0
+                
+                // For each time period, calculate the adjustment
+                local n_times = rowsof(orig_series)
+                forv i = 1/`n_times' {
+                    local time_val = orig_series[`i', 1]
+                    local orig_co = orig_series[`i', 2]
+                    local orig_tr = orig_series[`i', 3]
+                    local resid_co = resid_series[`i', 2]
+                    local resid_tr = resid_series[`i', 3]
+                    
+                    // Calculate average adjustment for this time period
+                    local adj_co = `orig_co' - `resid_co'
+                    local adj_tr = `orig_tr' - `resid_tr'
+                    
+                    // Apply time-specific adjustment based on treatment status
+                    qui replace `time_adj' = `adj_co' if T_XX == `time_val' & ever_treated_XX == 0
+                    qui replace `time_adj' = `adj_tr' if T_XX == `time_val' & ever_treated_XX == 1
+                }
+                
+                // Apply the adjustment to get residualized outcome
+                replace Y_XX = Y_XX - `time_adj'
+            }
+            else {
+                // Fallback: use a simpler approximation of the optimized method
+                // This replicates the key steps without the full optimization
+                
+                // Standardize covariates if not using unstandardized option
+                local adj_cov_vars ""
+                if "`unstandardized'" == "" {
+                    foreach var of local cov_vars {
+                        tempvar std_`var'
+                        qui egen `std_`var'' = std(`var')
+                        local adj_cov_vars "`adj_cov_vars' `std_`var''"
+                    }
+                }
+                else {
+                    local adj_cov_vars "`cov_vars'"
+                }
+                
+                // Use a regression approach that approximates the optimized method
+                tempvar group_fe time_fe
+                egen `group_fe' = group(G_XX)
+                egen `time_fe' = group(T_XX)
+                
+                qui reg Y_XX `adj_cov_vars' i.`group_fe' i.`time_fe'
+                predict double Y_resid_XX, residuals
+                replace Y_XX = Y_resid_XX
+                drop Y_resid_XX
+            }
+            
+            // Run sdid on the residualized outcome
+            sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method')
+        }
+    }
+    else {
+        // No covariates - direct call
+        sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method')
+    }
+
     mata: mata set matastrict off
     mata: omega = st_matrix("e(omega)")
     mata: lambda = st_matrix("e(lambda)")
