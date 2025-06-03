@@ -27,7 +27,9 @@
 {cmd:combine(}{it:string}{cmd:)}
 {cmd:vcov}
 {cmd:sb}
-{cmd:boot_ci]}
+{cmd:boot_ci}
+{cmd:_not_yet(}{it:string}{cmd:)}
+{cmd:unstandardized]}
 {p_end}
 
 {p 4 4}
@@ -102,10 +104,31 @@ Algorithms 2 and 4 in Clarke et al. (2023).
 
 {p 4 4}
 {cmd:covariates()}: adds covariates to the estimation routine.
-To this end, {cmd:sdid_event} implements the {it:projected} method
-from {cmd:sdid}, whereas the outcome is replaced by the residuals 
+{cmd:sdid_event} now supports all covariate adjustment methods
+available in {cmd:sdid}. Covariates should be included as a 
+{help varlist:varlist}, and optionally a method may be specified:
+{cmd:projected} (default) where the outcome is replaced by the residuals 
 of the outcome variable from a TWFE regression on covariates, in the 
-sample of untreated and not-yet-treated units.
+sample of untreated and not-yet-treated units, following the procedure 
+proposed by Kranz (2022); or {cmd:optimized} which follows the method 
+described in Arkhangelsky et al. (2021), footnote 4, where SDID is 
+applied to the residuals of all units after regression adjustment.
+{p_end}
+
+{p 4 4}
+{cmd:_not_yet()}: if covariates are included with the {cmd:projected} method, 
+allows for projections to be based off all not-yet-treated units rather 
+than only never-treated units. This option is enabled by default for the 
+projected method to maintain backward compatibility. Can be explicitly 
+disabled with {cmd:_not_yet(off)} to use only never-treated units for projection.
+Note: This option always requires parentheses.
+{p_end}
+
+{p 4 4}
+{cmd:unstandardized}: if covariates are included with the {cmd:optimized} method, 
+prevents standardization of covariates as z-scores prior to finding optimal weights. 
+By default, covariates are standardized when using the optimized method to avoid 
+problems with optimization when control variables have very high dispersion.
 {p_end}
 
 {p 4 4}
@@ -129,7 +152,6 @@ corresponding estimate, plus standard errors, CIs and
 number of treated units x post treatment periods in the
 requested windows.
 {p_end}
-
 
 {p 4 4}
 {cmd:vcov}: returns the variance-covariance matrix
@@ -190,6 +212,28 @@ of Clarke et al. (2023)
 {stata twoway (rarea res3 res4 id, lc(gs10) fc(gs11%50)) (scatter res1 id, mc(blue) ms(d)), legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-)) xline(0, lc(black) lp(solid))}
 {p_end}
 
+{p 2 4}
+Example 3: Using covariates with projected method (default)
+{p_end}
+
+{phang2}{stata webuse set www.damianclarke.net/stata/}{p_end}
+{phang2}{stata webuse quota_example.dta, clear}{p_end}
+{phang2}{stata keep if quotaYear==2002 | quotaYear==.}{p_end}
+{phang2}{stata drop if lngdp==.}{p_end}
+{phang2}{stata sdid_event womparl country year quota, covariates(lngdp) vce(bootstrap) brep(50)}{p_end}
+
+{p 2 4}
+Example 4: Using covariates with optimized method
+{p_end}
+
+{phang2}{stata sdid_event womparl country year quota, covariates(lngdp, optimized) vce(bootstrap) brep(50)}{p_end}
+
+{p 2 4}
+Example 5: Using projected method with only never-treated units
+{p_end}
+
+{phang2}{stata sdid_event womparl country year quota, covariates(lngdp, projected) _not_yet(off) vce(bootstrap) brep(50)}{p_end}
+
 {marker saved_results}{...}
 {title:Saved results}
 
@@ -214,6 +258,8 @@ Ciccia, D. (2024) {browse "https://arxiv.org/abs/2407.09565":A Short Note on Eve
 
 Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) {browse "https://arxiv.org/abs/2301.11859":Synthetic difference in differences estimation}.
 
+Kranz, S. (2022) {browse "https://github.com/skranz/xsynthdid/blob/main/paper/synthdid_with_covariates.pdf":Synthetic Difference-in-Differences with Time-Varying Covariates}.
+
 {marker authors}{...}
 {title:Authors}
 
@@ -231,7 +277,3 @@ Damian Clarke, Universidad de Chile.
 Daniel Pailañir, Universidad de Chile.
 {browse "mailto:dpailanir@fen.uchile.cl":dpailanir@fen.uchile.cl}
 {p_end}
-
-
-
-

@@ -13,9 +13,11 @@ This package depends on `sdid` and `unique`, which can be both installed from SS
 
 ## News
 
++ Jun 3, 2025 - **Enhanced covariate support**: Full implementation of all three covariate adjustment methods available in `sdid` (projected, optimized, and default optimized). Added `_not_yet` and `unstandardized` options for complete compatibility with `sdid` covariate functionality.
+
 + Feb 15, 2025 - Added `combine` option. Removed mattitles from internal `sdid` call. Fixed missing coefficients/variance bug.
 
-+ Jan 12, 2025 - Added coverage testing options `sb` and `boot_ci`. 
++ Jan 12, 2025 - Added coverage testing options `sb` and `boot_ci`.
 
 + Oct 31, 2024 - Added bootstrap variance-covariance matrix to ereturn().
 
@@ -40,6 +42,7 @@ sdid_event Y G T D [if] [in] [, opts]
 ```
 
 where:
+
 + **Y** is the outcome variable.
 + **G** is the unit/group variable.
 + **T** is the time variable.
@@ -48,10 +51,14 @@ where:
 As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binary and absorbing treatment, meaning that the treated units cannot revert their treatment status.
 
 ### Options
+
 + **effects**: number of event study effects to be reported.
 + **placebo**: number of placebo estimates to be computed.
-+ **covariates**: adds covariates to the estimation routine. To this end, **sdid_event** implements the *projected* method from **sdid**, whereas the outcome is replaced by the residuals of the outcome variable from a TWFE regression on covariates, in the 
-sample of untreated and not-yet-treated units.
++ **covariates**({it:{help varlist:varlist}}, [{it:method}]): adds covariates to the estimation routine. **sdid_event** now supports all covariate adjustment methods available in **sdid**:
+  + **projected** (default): The outcome is replaced by the residuals of the outcome variable from a TWFE regression on covariates, estimated on the sample of untreated and not-yet-treated units. This method follows the procedure proposed by Kranz (2022).
+  + **optimized**: Follows the method described in Arkhangelsky et al. (2021), footnote 4, where SDID is applied to the residuals of all units after regression adjustment based on the full optimization procedure.
++ **_not_yet()**: If covariates are included with the "projected" method, allows for projections to be based off all not-yet-treated units rather than only never-treated units. This option is enabled by default for the projected method to maintain backward compatibility. Can be explicitly disabled with **_not_yet(off)** to use only never-treated units for projection. Note: This option always requires parentheses.
++ **unstandardized**: If covariates are included with the "optimized" method, prevents standardization of covariates as z-scores prior to finding optimal weights. By default, covariates are standardized when using the optimized method.
 + **disag**: reports estimates of the cohort-specific aggregated and event study estimators.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).
@@ -67,7 +74,9 @@ sample of untreated and not-yet-treated units.
 + **e(H_c)**: matrix with **disag** option output.
 + **e(b)** and **e(V)**: conventional point estimate vector and variance matrix to allow for integration with **estout**.
 
-## Example
+## Examples
+
+### Basic Example
 
 Replication of Figure 4 from Clarke et al. (2023):
 
@@ -84,14 +93,36 @@ sort id
 twoway (rarea res3 res4 id, lc(gs10) fc(gs11%50)) (scatter res1 id, mc(blue) ms(d)), legend(off) title(sdid_event) xtitle(Relative time to treatment change) ytitle(Women in Parliament) yline(0, lc(red) lp(-)) xline(0, lc(black) lp(solid))
 ```
 
+### Example with Covariates
+
+Using the projected method (default):
+
+```stata
+sdid_event womparl country year quota, covariates(lngdp polity2) vce(bootstrap) brep(100)
+```
+
+Using the optimized method:
+
+```stata
+sdid_event womparl country year quota, covariates(lngdp polity2, optimized) vce(bootstrap) brep(100)
+```
+
+Using projected method with only never-treated units for projection:
+
+```stata
+sdid_event womparl country year quota, covariates(lngdp polity2, projected) _not_yet(off) vce(bootstrap) brep(100)
+```
+
 The result should look like this:
 
 ![Graph](https://github.com/user-attachments/assets/4a417ca3-9c86-45d5-80aa-ec82364a9f63)
 
-## References 
+## References
 
 Arkhangelsky, D., Athey, S., Hirshberg, D., Imbens, G., Wager, S. (2019) [Synthetic difference in differences](https://www.nber.org/papers/w25532)
 
 Ciccia, D (2024) [A Short Note on Event-Study Synthetic Difference-in-Differences Estimators](https://arxiv.org/abs/2407.09565)
 
 Clarke, D. Pailanir, D. Athey, S., Imbens, G. (2023) [Synthetic difference in differences estimation](https://arxiv.org/abs/2301.11859)
+
+Kranz, S. (2022) [Synthetic Difference-in-Differences with Time-Varying Covariates](https://github.com/skranz/xsynthdid/blob/main/paper/synthdid_with_covariates.pdf)
