@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string asis) vcov sb boot_ci combine(string) _not_yet unstandardized]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string asis) vcov sb boot_ci combine(string) _not_yet(string) unstandardized]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -34,7 +34,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         // Main estimation call - pass touse variable to sdid_event_core
         sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') ///
             method(`method') `disag' combine("`combine'") ///
-            covariates(`covariates') `_not_yet' `unstandardized'
+            covariates(`covariates') _not_yet(`_not_yet') `unstandardized'
         mat res_main = res
         mat H_main = H
 
@@ -121,7 +121,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
                 // Pass touse variable to bootstrap iterations
                 qui cap sdid_event_core `varlist' if `touse', effects(`effects') ///
                     placebo(`placebo') method(`method') sampling(`vce') ///
-                    covariates(`covariates') `_not_yet' `unstandardized'
+                    covariates(`covariates') _not_yet(`_not_yet') `unstandardized'
                 if _rc == 0 {
                     mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
                     mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
@@ -241,7 +241,7 @@ end
 
 cap program drop sdid_event_core  
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) covariates(string asis) _not_yet unstandardized]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) covariates(string asis) _not_yet(string) unstandardized]
 preserve
 qui {
 
@@ -357,7 +357,8 @@ qui {
         syntax varlist [, *] 
         local cov_vars `varlist'
         local cov_method "`options'"
-        if "`cov_method'" == "" local cov_method "optimized"
+        // Default to projected method with _not_yet if not specified (non-breaking change)
+        if "`cov_method'" == "" local cov_method "projected"
         
         // Error handling for unsupported methods
         if !inlist("`cov_method'", "projected", "optimized") {
@@ -367,8 +368,12 @@ qui {
         
         if "`cov_method'" == "projected" {
             // Build sdid options for projected method
-            local sdid_options "vce(noinference) method(`method') covariates(`covariates')"
-            if "`_not_yet'" != "" {
+            local sdid_options "vce(noinference) method(`method') covariates(`cov_vars', `cov_method')"
+            // Default to _not_yet for projected method (maintains original sdid_event behavior)
+            if "`_not_yet'" == "" {
+                local sdid_options "`sdid_options' _not_yet"
+            }
+            else if "`_not_yet'" != "off" {
                 local sdid_options "`sdid_options' _not_yet"
             }
             if "`unstandardized'" != "" {
@@ -396,7 +401,7 @@ qui {
             // that sdid does internally since we can't easily extract observation-level residuals
             
             // Call sdid first to get the optimization parameters
-            local sdid_options "vce(noinference) method(`method') covariates(`covariates')"
+            local sdid_options "vce(noinference) method(`method') covariates(`cov_vars', `cov_method')"
             if "`_not_yet'" != "" {
                 local sdid_options "`sdid_options' _not_yet"
             }
