@@ -1,6 +1,6 @@
 ### Results from sdid_cluster_coverage.do
 
-Coverage | Baseline | Cluster |
+Coverage | sdid Y G T D | sdid Y G T D, cluster(C) |
 :-------- | :--------: | :--------: |
 vce(bootstrap)  | 0.75  | 0.92  |
 vce(placebo)  | 0.75  | 0.96  |
