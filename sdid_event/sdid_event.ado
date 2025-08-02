@@ -497,6 +497,7 @@ cap mata: mata drop SE_add_emp()
 mata:
 void SE_add_emp(V, B) {
     H = B[,1], J(rows(B), 3, .), B[, 3]
+    V = V\B[,1]'
     for (j = 1; j <= rows(B); j++) {
         H[j, 2] = sqrt(variance(V)[j,j])
         V_nm = select(V[.,j], V[.,j]:~= .)

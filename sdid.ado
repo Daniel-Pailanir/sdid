@@ -12,6 +12,7 @@ Versions
 1.4.0 Jan 15, 2023: Standard error for each adoption (Bootstrap only)
 2.0.0 Feb 24, 2023: Standard error for each adoption (Bootstrap, placebo, jackknife) [SSC]
 2.0.3 May 14, 2025: Updates to incorporate additional covariate options
+2.0.4 July 31, 2025: Updates to incorporate cluster SE
 */
 
 cap program drop sdid
@@ -44,6 +45,7 @@ version 13.0
     XLINE_opts(string asis)
     YLINE_opts(string asis)
     _not_yet
+    cluster(string asis)
     ]
     ;
 #delimit cr  
@@ -283,6 +285,13 @@ if "`covariates'"!="" {
     }
 }
 
+// Clustering //
+if "`cluster'" == "" local clustervar `2'
+else {
+    tempvar clustervar
+    egen `clustervar' = group(`cluster')
+}
+
 *------------------------------------------------------------------------------*
 * (2) Calculate ATT, plus some locals for inference
 *------------------------------------------------------------------------------*
@@ -378,9 +387,11 @@ if "`vce'"=="bootstrap" {
     while `b'<=`B' {
         preserve
         qui keep if `touse'
-        keep `1' `2' `3' `4' `treated' `tyear' `conts'
+        keep `1' `2' `3' `4' `treated' `tyear' `conts' `clustervar'
         tempvar cID
-        bsample, cluster(`2') idcluster(`cID')
+        tempvar vID
+        bsample, cluster(`clustervar') idcluster(`cID')
+        egen `vID' = group(`cID' `2')
         qui count if `treated' == 0
         local r1 = r(N)
         qui count if `treated' != 0
@@ -396,7 +407,7 @@ if "`vce'"=="bootstrap" {
             qui putmata bsam_id=`2' if `tyear'==. & `3'==`mint', replace
             mata: indicator=smerge(bsam_id, (ori_id, ori_pos))
             mata: OMEGAB=OMEGA[(indicator\rows(OMEGA)),]		
-            mata: data = st_data(.,("`1' `cID' `2' `3' `4' `treated' `tyear' `conts'"))
+            mata: data = st_data(.,("`1' `vID' `2' `3' `4' `treated' `tyear' `conts'"))
             mata: ATT_b[`b',] = synthdid(data,1,OMEGAB,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter', `nyt')
 			
             *taus for adoption times
@@ -438,45 +449,63 @@ else if "`vce'"=="placebo" {
 	
     while `b'<=`B' {
         preserve
-        qui keep if `touse'
-		
-        keep `1' `2' `3' `4' `tyear' `conts'
-        qui drop if `tyear'!=.        //drop treated units
-		
-        tempvar id
-        egen `id' = group(`2')
-        qui sum `id'
-        local max = r(max)
-		
-        *generate vector of selected placebos
-        local rowsselect = `co'-`newtr'+1				
-        mata id_list = range(1, `max', 1)
-        mata asignar_pr = (id_list, runiform(`max',1))
-        mata st_matrix("Select", sort(asignar_pr, 2)[1..`rowsselect', 1])
-        				
-        *replace treatment status with placebos
-        forval i=1/`rowsselect' {
-            qui replace `tyear' = tryears[`i',1] if `id'==Select[`i',1]
+        qui {
+            keep if `touse'
+            
+            keep `1' `2' `3' `4' `tyear' `conts' `clustervar'
+            bys `clustervar': egen N_g = sum(`3'==1)
+            sum N_g
+            local N_g = r(mean)
+            if r(sd) != 0 {
+                noi di as err "vce(placebo) can be used with cluster() only when each cluster contains the same number of groups."
+                exit
+            }
+
+            tempvar treat_temp ever_treat clust_id
+            gen `treat_temp' = `tyear'!=.
+            bys `clustervar': egen `ever_treat' = max(`treat_temp')
+            
+            sort `ever_treat' `clustervar' `2' `3'
+            gen `clust_id' = _n if `ever_treat' == 1
+            sum `clust_id'
+            local start = r(min)
+            local stop = r(max)
+
+            mata: Y_1c = st_data(range(`start',`stop',1), ("`4' `clustervar'"))
+            mata: D_c = rowshape(Y_1c[.,1], rows(Y_1c)/(`T'*`N_g'))
+            mata: st_numscalar("diff_obs_placebo", (st_nobs()-rows(Y_1c))-rows(Y_1c))
+
+            if (scalar(diff_obs_placebo) < 0) {
+                noi di as err "When using cluster() with vce(placebo), the number of clusters with at least one treated units cannot exceed the number of clusters with only untreated units."
+                exit
+            }
+
+            mata: D_new = placebo_treat(st_nobs()-rows(Y_1c), D_c)
+
+            drop if `ever_treat' == 1  
+            mata: st_store(., "`4'", D_new)
+            egen `treated' = max(`4'), by(`2')
+            gen tyear_temp = `3' * `4' if `4' > 0
+            bys `2': egen tyear_new = min(tyear_temp)
+            replace `tyear' = tyear_new
+            drop tyear_new tyear_temp
+                    
+            noi display in smcl "." _continue
+            if mod(`b',50)==0 noi dis "     `b'"
+            
+            qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
+            mata: indicator=smerge(psam_id, (ori_id, ori_pos))
+            mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
+            mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
+            mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter', `nyt')
+
+            *taus for adoption times
+            mata: ty = uniqrows(select(data[,7], data[,5]:==1))
+            mata: ty_taus = (ty, st_matrix("tau_i"))
+            mata: tau_p =  (tau_p\ty_taus)
+                                
+            local ++b
         }
-
-        qui replace `4' = 1 if `3'>=`tyear'
-        egen `treated' = max(`4'), by(`2')
-				
-        display in smcl "." _continue
-        if mod(`b',50)==0 dis "     `b'"
-		
-        qui putmata psam_id=`2' if `tyear'==. & `3'==`mint', replace
-        mata: indicator=smerge(psam_id, (ori_id, ori_pos))
-        mata: OMEGAP=OMEGA[(indicator\rows(OMEGA)),]
-        mata: data = st_data(.,("`1' `2' `2' `3' `4' `treated' `tyear' `conts'"))
-        mata: ATT_p[`b',] = synthdid(data,1,OMEGAP,LAMBDA,`control_opt',`jk',`m', `zeta_lambda', `zeta_omega', `min_dec', `max_iter', `nyt')
-
-        *taus for adoption times
-        mata: ty = uniqrows(select(data[,7], data[,5]:==1))
-        mata: ty_taus = (ty, st_matrix("tau_i"))
-        mata: tau_p =  (tau_p\ty_taus)
-							
-        local ++b
         restore
     }
 	
@@ -1426,6 +1455,20 @@ mata:
         Beta = beta[1::NX]
         X = Y[.,8::K]
         Yprojected = Y[.,1]-X*Beta
+}
+end
+
+cap mata: mata drop placebo_treat()
+mata:
+real matrix placebo_treat(n,V) {
+    M = J(n,1,0)
+    r = cols(V)
+    index_set = (1..(n/r))', uniform(n/r,1)
+    index_set = sort(index_set, 2)
+    for (j = 1; j <= rows(V); j++) {
+        M[((index_set[j,1]-1)*r+1)..(index_set[j,1]*r),1] = V[j,.]'
+    }
+    return(M)
 }
 end
 
