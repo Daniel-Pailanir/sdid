@@ -13,6 +13,8 @@ This package depends on `sdid` and `unique`, which can be both installed from SS
 
 ## News
 
++ Aug 8, 2025 - Added `covariates(,optimized)` and supporting features.
+
 + Feb 15, 2025 - Added `combine` option. Removed mattitles from internal `sdid` call. Fixed missing coefficients/variance bug.
 
 + Jan 12, 2025 - Added coverage testing options `sb` and `boot_ci`. 
@@ -50,8 +52,7 @@ As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binar
 ### Options
 + **effects**: number of event study effects to be reported.
 + **placebo**: number of placebo estimates to be computed.
-+ **covariates**: adds covariates to the estimation routine. To this end, **sdid_event** implements the *projected* method from **sdid**, whereas the outcome is replaced by the residuals of the outcome variable from a TWFE regression on covariates, in the 
-sample of untreated and not-yet-treated units.
++ **covariates(** *varlist* [, *method* ]**)** : adds covariates to the estimation routine. To this end, **sdid_event** implements both the *optimized* (default) and *projected* methods from **sdid**. See the **sdid** help file for further details.
 + **disag**: reports estimates of the cohort-specific aggregated and event study estimators.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).

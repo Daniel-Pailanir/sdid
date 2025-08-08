@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string) vcov sb boot_ci combine(string)]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string asis) vcov sb boot_ci combine(string) unstandardized]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -28,18 +28,41 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         sort `2' `3'
         bys `2': egen ever_treated_XX = max(`4')
 
+        local cov_vars_opt = ""
         if "`covariates'" != "" {
-            egen G_XX = group(`2')
-            egen T_XX = group(`3')
-            // Residualize Y on covariates, T and G FE on the sample of not-yet-treated
-            reg `1' `covariates' ibn.G_XX ibn.T_XX if `4' == 0, noconst
-            predict Y_res_XX, res
-            local varlist = subinstr("`varlist'", "`1'", "Y_res_XX", 1)
-            drop G_XX T_XX
+            check_covariates `covariates'
+            if "`unstandardized'" != "" & r(cov_type) != "optimized" {
+                noi di as err "unstandardized can only be used with covariates(varlist, optimized)."
+                exit
+            }
+            if r(cov_type) == "projected" {
+                local cov_vars_proj = r(cov_vars)
+                egen G_XX = group(`2')
+                egen T_XX = group(`3')
+                // Residualize Y on covariates, T and G FE on the sample of not-yet-treated
+                reg `1' `cov_vars_proj' ibn.G_XX ibn.T_XX if `4' == 0, noconst
+                predict Y_res_XX, res
+                local varlist = subinstr("`varlist'", "`1'", "Y_res_XX", 1)
+                drop G_XX T_XX
+            }
+            else if r(cov_type) == "optimized" {
+                local cov_vars_opt = "`=r(cov_vars)'"
+                if "`unstandardized'" == "" {
+                    local scov_vars_opt 
+                    foreach var of varlist `cov_vars_opt' {
+                        egen z`var'_XX = std(`var') if `touse'
+                        local scov_vars_opt "`scov_vars_opt' z`var'"
+                    }
+                    local cov_vars_opt = "`scov_vars_opt'"
+                }
+            }
+            else {
+                di as err "Syntax error in covariates(varlist [, method])"
+                exit
+            }
         }
 
-
-        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'")
+        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'") cov_optimized("`cov_vars_opt'") `unstandardized'
         mat res_main = res
         mat H_main = H
 
@@ -123,7 +146,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             local counter = 1/50
             scalar r_XX = 1
             while r_XX <= breps {
-                qui cap sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') 
+                qui cap sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') cov_optimized("`cov_vars_opt'") `unstandardized'
                 if _rc == 0 {
                     mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
                     mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
@@ -243,7 +266,7 @@ end
 
 cap program drop sdid_event_core
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string)]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) cov_optimized(string) unstandardized]
 preserve
 qui {
 
@@ -253,7 +276,7 @@ qui {
     egen G_XX = group(`2')
     egen T_XX = group(`3')
     gen D_XX = `4'
-    keep Y_XX D_XX G_XX T_XX ever_treated_XX
+    keep Y_XX D_XX G_XX T_XX ever_treated_XX `cov_optimized'
 
     if "`sampling'" != "" {
         if "`sampling'" == "bootstrap" {
@@ -338,12 +361,18 @@ qui {
         }
     }
 
-    sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method')
+
+    sum Y_XX
+    sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method') covariates(`cov_optimized') `unstandardized'
     mata: mata set matastrict off
     mata: omega = st_matrix("e(omega)")
     mata: lambda = st_matrix("e(lambda)")
     matrix design = e(adoption)
     mata: st_numscalar("cohorts", rows(st_matrix("design")))
+
+    if "`cov_optimized'" != "" {
+        mata: beta = st_matrix("e(beta)")
+    }
 
     mat res = J(1 + `L_g', `=cohorts', .)
     local rown "ATT_c"
@@ -378,7 +407,15 @@ qui {
 
         sort C_XX G_XX T_XX
 
-        gen Y_XX_`c' = Y_XX if inlist(C_XX, 0, `c')
+        if "`cov_optimized'" == "" gen Y_XX_`c' = Y_XX if inlist(C_XX, 0, `c')
+        else { // Optimized projection //
+            gen Pr_`c'_XX = .
+            mata: st_store(., "Pr_`c'_XX", st_data(., "`cov_optimized'") * select(beta[1..(rows(beta)-1),.], beta[rows(beta),.]:==`c'))
+            gen Y_XX_`c' = Y_XX - Pr_`c'_XX if inlist(C_XX, 0, `c')
+
+            mata: st_data(.,"Pr_`c'_XX")'
+            drop Pr_`c'_XX
+        }
         mata: mata set matastrict off
         mata: ATT_compute(st_data(., "Y_XX_`c'"), omega_temp, lambda_temp, st_numscalar("N_`c'"), st_numscalar("N_Post_`c'"), st_numscalar("N_Tr_`c'"))
         mat res[1, `j'] = ATT
@@ -430,6 +467,15 @@ qui {
     }
 
 restore
+end
+
+cap program drop check_covariates
+program define check_covariates, rclass
+syntax varlist [, projected optimized]
+return local cov_vars = "`varlist'"
+if (("`projected'"==""&"`optimized'"=="")|("`projected'"==""&"`optimized'"!="")) return local cov_type = "optimized"
+else if ("`projected'"!=""&"`optimized'"=="") return local cov_type = "projected"
+else return local cov_type = ""
 end
 
 cap mata: mata drop ATT_compute()

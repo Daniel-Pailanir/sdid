@@ -1,4 +1,4 @@
-v 1.1.0
+v 2.0.0
 d Daniel Pailañir and Damian Clarke
 d dpailanir@fen.uchile.cl - dclarke@fen.uchile.cl
 d https://github.com/Daniel-Pailanir/sdid

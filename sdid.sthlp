@@ -9,12 +9,13 @@
 {title:Syntax}
 
 {p 4 4 2}
-{opt sdid} {opt depvar} {opt groupvar} {opt timevar} {opt treatment} {ifin}{cmd:,} {it:vce(vcetype)} [{it:options}]
+{opt sdid} {opt depvar} {opt groupvar} {opt timevar} {opt treatment} {ifin}{cmd:,} [{it:options}]
 
 {synoptset 29 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opth vce(vcetype)}}{it: vcetype} may be {opt bootstrap}, {opt jackknife}, {opt placebo} or {opt noinference}.{p_end}
+{synopt :{opth vce(vcetype)}}{it: vcetype} may be {opt bootstrap} (the default), {opt jackknife}, {opt placebo} or {opt noinference}.{p_end}
+{synopt :{opth cluster(varlist)}} clustered bootstrap, jackknife and placebo standard errors.{p_end}
 {synopt :{opt covariates}({it:{help varlist:varlist}}, [{it:type}])} Allows for the inclusion of covariates in the calculation of the synthetic counterfactual.
 Optional {it:type} can be specified, as either "optimized" (the default) or "projected", which is preferable in certain circumstances. {p_end}
 {synopt :{opt seed}({it:#})} set random-number seed to #.{p_end}
@@ -106,11 +107,16 @@ study models are provided in Ciccia (2024); Clarke et al, (2023), and formal det
 {title:Options}
 {dlgtab:Main}
 {phang}
-{opt vce(vcetype)} is a required option. This may be either bootstrap, jackknife, placebo, or noinference where in each case inference
+{opt vce(vcetype)} may be either bootstrap (the default), jackknife, placebo, or noinference where in each case inference
 proceeds following the specified method (or not conducted if "noinference" is specified).  In the case of bootstrap, this is only permitted 
 if greater than one unit is treated. In the case of jackknife, this is only permitted if greater than one unit is treated in each treatment 
 period (if multiple treatment periods are considered).  In the case of placebo, this requires at least one more control than treated unit 
 to allow for permutations to be constructed.  In each case, inference follows the specific algorithm laid out in Arkhangelsky et al. (2021).
+
+{pstd}
+{p_end}
+{phang}
+{opt cluster(varlist)} adjusts the inference algorithm specified in {opt vce(vcetype)} to clusters at the {it: varlist} level. The desired cluster level is specified via {it: varlist}. It is possible to specify more than one variable in {it:varlist}, as long as their join is coarser than the group variable (e.g. {cmd: sdid earnings firm year treatment, ... cluster(region industry)}). There is no need to cluster at the group variable, in that inference is already perfomed at that level. When {opt vce(bootstrap)} is selected, bootstrap resampling is performed at the cluster level. When {opt vce(placebo)} is selected, treatment paths of clusters that have at least one treated group are reassigned to fully untreated clusters. In this case, it is required that ({it:a}) there are at least as many fully untreated clusters as clusters with at least one treated group, ({it:b}) all clusters contain the same number of groups. When {opt vce(jackknife)} is selected, the leave-one-out procedure is performed at the cluster level, i.e. iterating through all clusters, SDID is run on the full sample minus the groups included in the cluster at hand. For this reason, it is required that there are at least two clusters with at least one treated group per cohort.
 
 {pstd}
 {p_end}
@@ -279,7 +285,8 @@ These will be passed to {it:yline()} internally, and hence any valid options acc
 {synopt:{cmd:e(ATT_r)}}Right-hand point of confidence interval on ATT (based on level()) {p_end}
 {synopt:{cmd:e(se)}}Standard error for the ATT {p_end}
 {synopt:{cmd:e(reps)}}Number of bootstrap/placebo replications {p_end}
-{synopt:{cmd:e(N_clust)}}Number of units (groups) observed in the original panel used for {cmd:sdid} {p_end}
+{synopt:{cmd:e(G)}}Number of units (groups) observed in the original panel used for {cmd:sdid} {p_end}
+{synopt:{cmd:e(N_clust)}}Number of clusters observed in the original panel used for {cmd:sdid} {p_end}
 
 
 {synoptset 20 tabbed}{...}
@@ -389,7 +396,7 @@ Email {browse "mailto:dpailanir@fen.uchile.cl":dpailanir@fen.uchile.cl}
 Website {browse "https://daniel-pailanir.github.io/"}
 
 Diego Ciccia, Sciences Po.
-Email {browse "mailto:diego.ciccia@sciencespo.fr":diego.ciccia@sciencespo.fr}
+Email {browse "mailto:diego.ciccia@kellogg.northwestern.edu":diego.ciccia@kellogg.northwestern.edu}
 Website {browse "https://diegociccia.github.io/"}
 
 

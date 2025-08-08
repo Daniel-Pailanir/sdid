@@ -1,5 +1,4 @@
 clear
-qui do "sdid.ado"
 
 cap mata: mata drop cluster_data()
 mata:
@@ -22,7 +21,7 @@ local GC = 10
 local TT = 10
 local B = 100
 
-mat res = J(`B',4,.)
+mat res = J(`B',6,.)
 forv h = 1/`B' {
     drop _all
     set obs `=`CC'*`GC''
@@ -35,7 +34,7 @@ forv h = 1/`B' {
     reshape long Y, i(C G) j(T)
 
     // No treatment effect, Basic Design, 2 treated clusters, 5 treated groups each
-    gen D = ((G>85&G<=90)|(G>95&G<=100)) & T>=`TT'/2
+    gen D = C >= 90 & mod(G,2) == 0 & T>=`TT'/2
     sdid Y G T D, vce(bootstrap) 
     mat res[`h', 1] = (0>=e(b)[1,1]-1.96*sqrt(e(V)[1,1])&0<=e(b)[1,1]+1.96*sqrt(e(V)[1,1]))
     sdid Y G T D, vce(bootstrap) cluster(C)
@@ -44,10 +43,14 @@ forv h = 1/`B' {
     mat res[`h', 3] = (0>=e(b)[1,1]-1.96*sqrt(e(V)[1,1])&0<=e(b)[1,1]+1.96*sqrt(e(V)[1,1]))
     sdid Y G T D, vce(placebo) cluster(C)
     mat res[`h', 4] = (0>=e(b)[1,1]-1.96*sqrt(e(V)[1,1])&0<=e(b)[1,1]+1.96*sqrt(e(V)[1,1]))
+    sdid Y G T D, vce(jackknife) 
+    mat res[`h', 5] = (0>=e(b)[1,1]-1.96*sqrt(e(V)[1,1])&0<=e(b)[1,1]+1.96*sqrt(e(V)[1,1]))
+    sdid Y G T D, vce(jackknife) cluster(C)
+    mat res[`h', 6] = (0>=e(b)[1,1]-1.96*sqrt(e(V)[1,1])&0<=e(b)[1,1]+1.96*sqrt(e(V)[1,1]))
 }
 
 svmat res
-forv j = 1/4 {
+forv j = 1/6 {
     qui sum res`j'
     di r(mean)
 }
