@@ -37,13 +37,6 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             }
             if r(cov_type) == "projected" {
                 local cov_vars_proj = r(cov_vars)
-                egen G_XX = group(`2')
-                egen T_XX = group(`3')
-                // Residualize Y on covariates, T and G FE on the sample of not-yet-treated
-                reg `1' `cov_vars_proj' ibn.G_XX ibn.T_XX if `4' == 0, noconst
-                predict Y_res_XX, res
-                local varlist = subinstr("`varlist'", "`1'", "Y_res_XX", 1)
-                drop G_XX T_XX
             }
             else if r(cov_type) == "optimized" {
                 local cov_vars_opt = "`=r(cov_vars)'"
@@ -62,7 +55,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             }
         }
 
-        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'") cov_optimized("`cov_vars_opt'") `unstandardized'
+        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'") cov_optimized("`cov_vars_opt'") `unstandardized' cov_projected("`cov_vars_proj'")
         mat res_main = res
         mat H_main = H
 
@@ -146,7 +139,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             local counter = 1/50
             scalar r_XX = 1
             while r_XX <= breps {
-                qui cap sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') cov_optimized("`cov_vars_opt'") `unstandardized'
+                qui cap sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') cov_optimized("`cov_vars_opt'") `unstandardized' cov_projected("`cov_vars_proj'")
                 if _rc == 0 {
                     mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
                     mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
@@ -266,7 +259,7 @@ end
 
 cap program drop sdid_event_core
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) cov_optimized(string) unstandardized]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) cov_optimized(string) cov_projected(string) unstandardized]
 preserve
 qui {
 
@@ -276,7 +269,7 @@ qui {
     egen G_XX = group(`2')
     egen T_XX = group(`3')
     gen D_XX = `4'
-    keep Y_XX D_XX G_XX T_XX ever_treated_XX `cov_optimized'
+    keep Y_XX D_XX G_XX T_XX ever_treated_XX `cov_optimized' `cov_projected'
 
     if "`sampling'" != "" {
         if "`sampling'" == "bootstrap" {
@@ -314,6 +307,14 @@ qui {
             sort G_XX T_XX
             bys G_XX: egen ever_treated_XX = max(D_XX)            
         }
+    }
+
+    if "`cov_projected'" != "" {
+        // Residualize Y on covariates, T and G FE on the sample of not-yet-treated
+        reg Y_XX `cov_projected' ibn.G_XX ibn.T_XX if D_XX == 0, noconst
+        predict Y_res_XX, res
+        replace Y_XX = Y_res_XX
+        drop Y_res_XX
     }
 
     gen F_g_temp = D_XX*T_XX

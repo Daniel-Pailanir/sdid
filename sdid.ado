@@ -578,7 +578,7 @@ if "`vce'"=="noinference" local se=.
 ereturn scalar se     =`se' 
 ereturn scalar ATT    =`ATT'
 ereturn scalar reps   =`reps'
-ereturn scalar G      = `ngroups'
+ereturn scalar N_group= `ngroups'
 ereturn scalar N_clust=`nclust'
 
 
@@ -657,6 +657,7 @@ if "`covariates'"!="" {
 }
 
 ereturn local cmdline  "sdid `0'"
+ereturn local groupvar `2'
 ereturn local clustvar `clustvar'
 ereturn local depvar   `1'
 ereturn local vce      "`vce'"

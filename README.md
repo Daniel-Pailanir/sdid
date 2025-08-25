@@ -118,6 +118,17 @@ Standard errors in parentheses
 * p<0.10, ** p<0.05, *** p<0.01
 ```
 
+#### Example with cluster()
+
+The example below showcases the use of **cluster()** on simulation data from the [coverage tests](https://github.com/DiegoCiccia/sdid/tree/main/simulations/cluster%20SE).
+
+```stata
+clear
+
+
+
+```
+
 ### Acknowledgments
 We are grateful to Noah Spencer, Jared Greathouse and Asjad Naqvi for very useful feedback related to this code.  We are also very grateful to many other users who have suggested a range of useful extensions and filed bug reports which have made this code better.
 
