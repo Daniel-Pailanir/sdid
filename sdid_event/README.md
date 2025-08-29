@@ -13,6 +13,10 @@ This package depends on `sdid` and `unique`, which can be both installed from SS
 
 ## News
 
++ Aug 29, 2025 - Added `cluster()` option.
+
++ Aug 8, 2025 - Added `covariates(,optimized)` and supporting features.
+
 + Feb 15, 2025 - Added `combine` option. Removed mattitles from internal `sdid` call. Fixed missing coefficients/variance bug.
 
 + Jan 12, 2025 - Added coverage testing options `sb` and `boot_ci`. 
@@ -50,11 +54,11 @@ As in `sdid`, the dataset has to be a balanced panel and **D** has to be a binar
 ### Options
 + **effects**: number of event study effects to be reported.
 + **placebo**: number of placebo estimates to be computed.
-+ **covariates**: adds covariates to the estimation routine. To this end, **sdid_event** implements the *projected* method from **sdid**, whereas the outcome is replaced by the residuals of the outcome variable from a TWFE regression on covariates, in the 
-sample of untreated and not-yet-treated units.
++ **covariates(** *varlist* [, *method* ]**)** : adds covariates to the estimation routine. To this end, **sdid_event** implements both the *optimized* (default) and *projected* methods from **sdid**. See the **sdid** help file for further details.
 + **disag**: reports estimates of the cohort-specific aggregated and event study estimators.
 + **vce(** off | bootstrap | placebo **)**: selects method for bootstrap inference. With **off**, the program reports only the point estimates, while **bootstrap** and **placebo** correspond to Algorithms 2 and 4 in Clarke et al. (2023).
 + **brep()**: number of bootstrap replications (default = 50).
++ **cluster()**: adjusts the inference algorithm specified in **vce()** to clusters at the *varlist* level. The desired cluster level is specified via *varlist*. It is possible to specify more than one variable in *varlist*, as long as their join is coarser than the group variable (e.g. **sdid earnings firm year treatment, ... cluster(region industry)**). There is no need to cluster at the group variable, in that inference is already perfomed at that level. When **vce(bootstrap)** is selected, bootstrap resampling is performed at the cluster level. When **vce(placebo)** is selected, treatment paths of clusters that have at least one treated group are reassigned to fully untreated clusters. In this case, it is required that (a) there are at least as many fully untreated clusters as clusters with at least one treated group, (b) all clusters contain the same number of groups. 
 + **method(** sdid | did | sc **)**: selects estimation method as in **sdid**.
 + **combine()**: grouping multiple event study coefficients under a single estimate. For instance, with year-group data over 6 years, one could be interested in comparing differential outcomes in three-year windows after the start of the treatment. This can be achieved by **combine(1 2 3; 4 5 6)**. This option returns the corresponding estimate, plus standard errors, CIs and number of treated units x post treatment periods in the requested windows.
 + **vcov**: returns the variance-covariance matrix of the requested dynamic effects. If **placebo()** is requested, the option also returns the variance-covariance matrix of the placebo estimates.

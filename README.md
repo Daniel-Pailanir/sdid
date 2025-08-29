@@ -9,6 +9,9 @@ Here we provide a native Stata implementation, principally written in Mata.  Thi
 >If you wish to implement Event Study analysis with SDiD, please check out [sdid_event](https://github.com/Daniel-Pailanir/sdid/tree/main/sdid_event) and its [technical note](https://arxiv.org/abs/2407.09565).
 >
 
+>[!Important]
+> New cluster() feature for sdid and sdid_event. [Check it out!](#example-with-cluster)
+
 To install directly into Stata:
 ```s
 ssc install sdid, replace
@@ -25,12 +28,13 @@ net install sdid, from("https://raw.githubusercontent.com/daniel-pailanir/sdid/m
 
 ## Syntax
 ```s
-sdid Y S T D [if] [in], vce(method) seed(#) reps(#) covariates(varlist [, method])
+sdid Y S T D [if] [in], vce(method) cluster(varlist) seed(#) reps(#) covariates(varlist [, method])
                         zeta_lambda(real) zeta_omega(real) min_dec(real) max_iter(real)
                         method(methodtype) unstandardized graph_export([stub] , type) mattitles
                         graph g1on g1_opt(string) g2_opt(string) msize() 
 ```
 + vce(): **bootstrap**, **jackknife** and **placebo**. If you want to omit this procedure use **noinference**.
++ cluster(): clustered bootstrap, jackknife and placebo standard errors.
 + method(): **sdid** for Synthetic DiD, **did** for DiD and **sc** for Synthetic Control.
 + seed(): seed define for pseudo-random numbers.
 + reps(): repetitions for bootstrap and placebo se.
@@ -117,8 +121,25 @@ Standard errors in parentheses
 * p<0.10, ** p<0.05, *** p<0.01
 ```
 
+### Example with cluster()
+
+The example below showcases the use of **cluster()** on simulation data from the [coverage tests](https://github.com/DiegoCiccia/sdid/tree/main/simulations/cluster%20SE).
+
+```stata
+clear
+use "https://raw.githubusercontent.com/DiegoCiccia/sdid/main/simulations/cluster%20SE/ex_data.dta", clear
+
+sdid Y G T D
+sdid Y G T D, cluster(C)
+sdid Y G T D, cluster(C) vce(placebo)
+
+sdid_event Y G T D
+sdid_event Y G T D, cluster(C)
+sdid_event Y G T D, cluster(C) vce(placebo)
+```
+
 ### Acknowledgments
-We are grateful to Noah Spencer, Jared Greathouse and Asjad Naqvi for very useful feedback related to this code.  We are also very grateful to many other users who have suggested a range of useful extensions and filed bug reports which have made this code better.
+We are grateful to Noah Spencer, Jared Greathouse, Moritz Peist and Asjad Naqvi for very useful feedback related to this code.  We are also very grateful to many other users who have suggested a range of useful extensions and filed bug reports which have made this code better.
 
 
 ### References
