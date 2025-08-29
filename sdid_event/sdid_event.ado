@@ -1,6 +1,6 @@
 cap program drop sdid_event
 program define sdid_event, eclass
-syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string asis) vcov sb boot_ci combine(string) unstandardized]
+syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string asis) vcov sb boot_ci combine(string) unstandardized cluster(string)]
     version 12.0
     tempvar touse
     mark `touse' `if' `in'
@@ -33,6 +33,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             check_covariates `covariates'
             if "`unstandardized'" != "" & r(cov_type) != "optimized" {
                 noi di as err "unstandardized can only be used with covariates(varlist, optimized)."
+                cap drop *_XX
                 exit
             }
             if r(cov_type) == "projected" {
@@ -51,11 +52,17 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             }
             else {
                 di as err "Syntax error in covariates(varlist [, method])"
+                cap drop *_XX
                 exit
             }
         }
 
-        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'") cov_optimized("`cov_vars_opt'") `unstandardized' cov_projected("`cov_vars_proj'")
+        scalar inner_loop_error = 0
+        sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') `disag' combine("`combine'") cov_optimized("`cov_vars_opt'") `unstandardized' cov_projected("`cov_vars_proj'") cluster(`cluster')
+        if (scalar(inner_loop_error) == 1) {
+            cap drop *_XX
+            exit 
+        }
         mat res_main = res
         mat H_main = H
 
@@ -63,6 +70,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         if !inlist("`vce'", "off", "bootstrap", "placebo") {
             di as err "Syntax error in vce option."
             di as err "Only {cmd:off}, {cmd:placebo} and {cmd:bootstrap} (dafalt) allowed."
+            cap drop *_XX
             exit
         }
         if "`vce'" == "placebo" {
@@ -71,6 +79,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             unique `2' if ever_treated_XX == 1
             if `N_co' < r(unique) {
                 di as err "vce(placebo) can only be specified when the number of treated units is lower than the number of control units."
+                cap drop *_XX
                 exit
             }
         }
@@ -126,11 +135,9 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         ereturn matrix H = H_main
     }
     else {  
-            qui {
-                scalar breps = `brep'
-                mata: boot_res_XX = J(st_numscalar("breps"), rows(st_matrix("H_main")), .)
-                local failed = 0
-            }
+            scalar breps = `brep'
+            mata: boot_res_XX = J(st_numscalar("breps"), rows(st_matrix("H_main")), .)
+            local failed = 0
 
             di ""
             di "Boostrap replications (`brep'), `vce' mode."
@@ -138,9 +145,12 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
             di "|" _continue
             local counter = 1/50
             scalar r_XX = 1
+            scalar inner_loop_error = 0
             while r_XX <= breps {
-                qui cap sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') cov_optimized("`cov_vars_opt'") `unstandardized' cov_projected("`cov_vars_proj'")
-                if _rc == 0 {
+                scalar failed_run = 0
+                sdid_event_core `varlist' if `touse', effects(`effects') placebo(`placebo') method(`method') sampling(`vce') cov_optimized("`cov_vars_opt'") `unstandardized' cov_projected("`cov_vars_proj'") cluster(`cluster')
+                if (scalar(inner_loop_error) == 1) continue, break
+                if (scalar(failed_run) == 0) {
                     mata: fail_coefs = rows(st_matrix("H_main")) - rows(st_matrix("H"))
                     mata: boot_res_XX[st_numscalar("r_XX"), .] = ((st_matrix("H")[., 1])', J(1, fail_coefs, .))
                     if (r_XX/`brep') > `counter' {
@@ -161,6 +171,10 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
                     mata: SE_add_emp(boot_res_XX, st_matrix("H_main"))
                     di "CIs recovered from bootstrap distribution"
                 }
+            }
+            if (scalar(inner_loop_error) == 1) {
+                cap drop *_XX
+                exit
             }
 
             local rownm: rown H_main
@@ -259,7 +273,7 @@ end
 
 cap program drop sdid_event_core
 program define sdid_event_core, eclass
-syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) cov_optimized(string) cov_projected(string) unstandardized]
+syntax varlist(max = 4 min = 4) [if] [in], effects(integer) method(string) [disag placebo(string) sampling(string) combine(string) cov_optimized(string) cov_projected(string) unstandardized cluster(string)]
 preserve
 qui {
 
@@ -269,11 +283,18 @@ qui {
     egen G_XX = group(`2')
     egen T_XX = group(`3')
     gen D_XX = `4'
-    keep Y_XX D_XX G_XX T_XX ever_treated_XX `cov_optimized' `cov_projected'
+    keep Y_XX D_XX G_XX T_XX ever_treated_XX `cov_optimized' `cov_projected' `cluster'
+
+    if "`cluster'" != "" {
+        egen cluster_XX = group(`cluster')
+    }
+    else {
+        gen cluster_XX = G_XX
+    }
 
     if "`sampling'" != "" {
         if "`sampling'" == "bootstrap" {
-            bsample, cluster(G_XX)
+            bsample, cluster(cluster_XX)
             sort G_XX T_XX
             bys G_XX T_XX: gen ID_XX = _n
             egen G_temp_XX = group(G_XX ID_XX)
@@ -282,28 +303,48 @@ qui {
             drop G_temp_XX ID_XX
         }
         if "`sampling'" == "placebo" {
-            sort G_XX T_XX
-            mata: treat = st_data(., ("G_XX", "T_XX", "D_XX", "ever_treated_XX"))
-            mata: treat = select(treat, treat[., 4])[., 3]
-            mata: st_matrix("treat", treat)
-            keep if ever_treated_XX == 0
+            bys cluster_XX: gen N_C_XX = _N
+            sum N_C_XX
+            if r(sd) > 0 {
+                noi di as err "When vce(placebo) is specified, clustervar must contain the same number of units."
+                restore
+                scalar inner_loop_error = 1
+                exit
+            }
+            local N_C = r(mean)
+            bys cluster_XX: egen ever_treated_C_XX = max(D_XX)
+            sort ever_treated_C_XX cluster_XX G_XX T_XX
+            mata: M_C = st_data(., ("D_XX", "ever_treated_C_XX"))
+            mata: M_C_1 = colshape(select(M_C[.,1], M_C[.,2] :== 1), `N_C')
+            mata: M_C_0 = colshape(select(M_C[.,1], M_C[.,2] :== 0), `N_C')
+            mata: st_numscalar("N_diff_rows", rows(M_C_0) - rows(M_C_1))
+            mata: st_numscalar("N_diff_cols", cols(M_C_0) - cols(M_C_1))
+            if scalar(N_diff_rows) < 0 {
+                noi di as err "With vce(placebo), there must be at least as many untreated groups (or clusters) as treated groups (or clusters)."
+                restore
+                scalar inner_loop_error = 1
+                exit 
+            }
+            if scalar(N_diff_cols) != 0 {
+                noi di as err "When vce(placebo) is specified, clustervar must contain the same number of units."
+                restore
+                scalar inner_loop_error = 1
+                exit
+            }
 
-            bsample, cluster(G_XX)
-            sort G_XX T_XX
-            bys G_XX T_XX: gen ID_XX = _n
-            egen G_temp_XX = group(G_XX ID_XX)
-            replace G_XX = G_temp_XX
-            sort G_XX T_XX
-            drop G_temp_XX ID_XX
-
-            drop D_XX ever_treated_XX
-            gen id_r = uniform()
-            bys G_XX: egen id_rg = mean(id_r)
-            sort id_rg G_XX T_XX
-            svmat treat
-            rename treat1 D_XX
-            replace D_XX = 0 if missing(D_XX)
+            mata: M_P = (M_C_1 \ J(st_numscalar("N_diff_rows"), cols(M_C_1), 0)), runiform(rows(M_C_0), 1)
+            mata: M_P = sort(M_P, cols(M_P))[.,1..(cols(M_P)-1)]
             
+            keep if ever_treated_C_XX == 0
+
+            drop D_XX ever_treated_*
+            gen D_XX = .
+            mata: st_store(., "D_XX", rowshape(M_P, rows(M_P)*cols(M_P)))
+
+            foreach temp in M_C M_C_1 M_C_0 M_P {
+                mata: mata drop `temp'
+            }
+
             sort G_XX T_XX
             bys G_XX: egen ever_treated_XX = max(D_XX)            
         }
@@ -364,7 +405,12 @@ qui {
 
 
     sum Y_XX
-    sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method') covariates(`cov_optimized') `unstandardized'
+    cap sdid Y_XX G_XX T_XX D_XX, vce(noinference) method(`method') covariates(`cov_optimized') `unstandardized'
+    if _rc != 0 {
+        scalar failed_run = 1
+        restore
+        exit
+    }
     mata: mata set matastrict off
     mata: omega = st_matrix("e(omega)")
     mata: lambda = st_matrix("e(lambda)")

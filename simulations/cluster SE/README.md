@@ -2,9 +2,35 @@
 
 Coverage | sdid Y G T D | sdid Y G T D, cluster(C) |
 :-------- | :--------: | :--------: |
-vce(bootstrap)  | 0.75  | 0.92  |
-vce(placebo)  | 0.75  | 0.96  |
-vce(jackknife)  | 0.75  | 0.95  |
+vce(bootstrap)  | |
+ATT | 0.75  | 0.92  |
+vce(placebo)  | |
+ATT | 0.75  | 0.96  |
+vce(jackknife)  | |
+ATT | 0.75  | 0.95  |
+
+### Results from sdid_event_cluster_coverage.do
+
+Coverage | sdid_event Y G T D | sdid_event Y G T D, cluster(C) |
+:-------- | :--------: | :--------: |
+vce(bootstrap)  | | |
+ATT | 0.75 | 0.92 |
+Effect 1 | 0.77 | 0.92 |
+Effect 2 | 0.74 | 0.91 |
+Effect 3 | 0.70 | 0.92 |
+Effect 4 | 0.82 | 0.94 |
+Effect 5 | 0.72 | 0.91 |
+Effect 6 | 0.76 | 0.94 |
+vce(placebo)  | | |
+ATT | 0.74 | 0.95 |
+Effect 1 | 0.73 | 0.95 |
+Effect 2 | 0.74 | 0.96 |
+Effect 3 | 0.77 | 0.93 |
+Effect 4 | 0.85 | 0.96 |
+Effect 5 | 0.75 | 0.94 |
+Effect 6 | 0.83 | 0.98 |
+
+
 
 ### Simulation Details 
 100 simulations with periods $t = 1,..., T = 10$, clusters $c = 1, ..., C = 100$, each containing $N\_c = 10$ groups each ($G = 1000$). Let $Y\_{g,t}$ be the outcome of group $g$ at time $t$, $Y\_g$ be the $1 \times T$ vector stacking the outcomes of group $g$, let $Y\_c$ the $N\_c \times T$ matrix stacking the vectors $Y\_g$ for all $g$ in cluster $c$, and let $Y\_{c,t}$ be the $t$-th column of $Y\_c$ for $t = 1,..., T$. 
@@ -22,6 +48,6 @@ As for the treatment rollout, we let
 
 $$D\_{g,t} = 1\lbrace c\_g \geq 90, g \bmod 2 = 0, t \geq 5 \rbrace $$
 
-Taking stock, we consider a non-staggered setting with 5 treated groups belonging to the same cluster. Since the outcome is independent of the treatment, the true ATT is 0.
+This treatment vector allows for the computation of six dynamic effects. Taking stock, we consider a non-staggered setting with 5 treated groups belonging to the same cluster. Since the outcome is independent of the treatment, the true $ATT$ and $ATT\_\ell$ are 0.
 
 

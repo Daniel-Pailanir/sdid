@@ -23,6 +23,7 @@
 {cmd:disag}
 {cmd:vce(}{it:string}{cmd:)}
 {cmd:brep(}{it:integer} 50{cmd:)}
+{cmd:cluster(}{it:varlist}{cmd:)}
 {cmd:method(}{it:string}{cmd:)}
 {cmd:combine(}{it:string}{cmd:)}
 {cmd:vcov}
@@ -99,6 +100,26 @@ The allowed arguments are {cmd:off}, {cmd:bootstrap} and {cmd:placebo}.
 With {cmd:off}, the program reports only the point estimates,
 while {cmd:bootstrap} and {cmd:placebo} correspond to 
 Algorithms 2 and 4 in Clarke et al. (2023).
+{p_end}
+
+{p 4 4}
+{cmd:cluster()} adjusts the inference algorithm 
+specified in {cmd:vce()} to clusters at the {it: varlist} 
+level. The desired cluster level is specified via {it: varlist}. 
+It is possible to specify more than one variable in {it:varlist}, 
+as long as their join is coarser than the group variable 
+(e.g. {cmd: sdid earnings firm year treatment, ... cluster(region industry)}). 
+There is no need to cluster at the group variable, 
+in that inference is already perfomed at that level. 
+When {cmd:vce(bootstrap)} is selected, 
+bootstrap resampling is performed at the cluster level. 
+When {cmd:vce(placebo)} is selected, treatment paths 
+of clusters that have at least one treated 
+group are reassigned to fully untreated clusters. 
+In this case, it is required that ({it:a}) there are at least 
+as many fully untreated clusters as clusters with at least 
+one treated group, ({it:b}) all clusters contain 
+the same number of groups. 
 {p_end}
 
 {p 4 4}
