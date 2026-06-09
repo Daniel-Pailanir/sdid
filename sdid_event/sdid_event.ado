@@ -67,9 +67,9 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
         mat H_main = H
 
         if "`vce'" == "" local vce "bootstrap"
-        if !inlist("`vce'", "off", "bootstrap", "placebo") {
+        if !inlist("`vce'", "noinference", "bootstrap", "placebo") {
             di as err "Syntax error in vce option."
-            di as err "Only {cmd:off}, {cmd:placebo} and {cmd:bootstrap} (dafalt) allowed."
+            di as err "Only {cmd:noinference}, {cmd:placebo} and {cmd:bootstrap} (default) allowed."
             cap drop *_XX
             exit
         }
@@ -123,7 +123,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
     }
     di as text "`m_`method''"
 
-    if "`vce'" == "off" {
+    if "`vce'" == "noinference" {
         matlist H_main, under
 
         local rownm: rown H_main
