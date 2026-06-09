@@ -1,6 +1,6 @@
-v 1.0.0
-d Daniel Pailañir and Damian Clarke
-d dpailanir@fen.uchile.cl - dclarke@fen.uchile.cl
+v 2.0.6
+d Daniel Pailañir and Damian Clarke and Diego Ciccia
+d dpailanir@fen.uchile.cl - dclarke@fen.uchile.cl - diego.ciccia@kellogg.northwestern.edu
 d https://github.com/Daniel-Pailanir/sdid
 
 d 'sdid': Synthetic Difference in Differences
