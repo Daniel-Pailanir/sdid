@@ -116,7 +116,15 @@ to allow for permutations to be constructed.  In each case, inference follows th
 {pstd}
 {p_end}
 {phang}
-{opt cluster(varlist)} adjusts the inference algorithm specified in {opt vce(vcetype)} to clusters at the {it: varlist} level. The desired cluster level is specified via {it: varlist}. It is possible to specify more than one variable in {it:varlist}, as long as their join is coarser than the group variable (e.g. {cmd: sdid earnings firm year treatment, ... cluster(region industry)}). There is no need to cluster at the group variable, in that inference is already perfomed at that level. When {opt vce(bootstrap)} is selected, bootstrap resampling is performed at the cluster level. When {opt vce(placebo)} is selected, treatment paths of clusters that have at least one treated group are reassigned to fully untreated clusters. In this case, it is required that ({it:a}) there are at least as many fully untreated clusters as clusters with at least one treated group, ({it:b}) all clusters contain the same number of groups. When {opt vce(jackknife)} is selected, the leave-one-out procedure is performed at the cluster level, i.e. iterating through all clusters, SDID is run on the full sample minus the groups included in the cluster at hand. For this reason, it is required that there are at least two clusters with at least one treated group per cohort.
+{opt cluster(varlist)} adjusts the inference algorithm specified in {opt vce(vcetype)} to clusters at the {it: varlist} level. The desired cluster 
+level is specified via {it: varlist}. It is possible to specify more than one variable in {it:varlist}, as long as their join is coarser than the 
+group variable (e.g. {cmd: sdid earnings firm year treatment, ... cluster(region industry)}). There is no need to cluster at the group variable, 
+in that inference is already perfomed at that level. When {opt vce(bootstrap)} is selected, bootstrap resampling is performed at the cluster level. 
+When {opt vce(placebo)} is selected, treatment paths of clusters that have at least one treated group are reassigned to fully untreated clusters. In 
+this case, it is required that ({it:a}) there are at least as many fully untreated clusters as clusters with at least one treated group, ({it:b}) all 
+clusters contain the same number of groups. When {opt vce(jackknife)} is selected, the leave-one-out procedure is performed at the cluster level, 
+i.e. iterating through all clusters, SDID is run on the full sample minus the groups included in the cluster at hand. For this reason, it is required 
+that there are at least two clusters with at least one treated group per cohort.
 
 {pstd}
 {p_end}
