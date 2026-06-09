@@ -13,6 +13,8 @@ This package depends on `sdid` and `unique`, which can be both installed from SS
 
 ## News
 
++ June 8, 2026 - `vce(off)` is now `vce(noinference)` as in `sdid`.
+
 + Aug 29, 2025 - Added `cluster()` option.
 
 + Aug 8, 2025 - Added `covariates(,optimized)` and supporting features.
