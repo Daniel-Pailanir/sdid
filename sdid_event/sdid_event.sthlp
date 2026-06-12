@@ -96,8 +96,8 @@ By default, all feasible dynamic effects are reported.
 
 {p 4 4}
 {cmd:vce()}: selects method for bootstrap inference. 
-The allowed arguments are {cmd:off}, {cmd:bootstrap} and {cmd:placebo}.
-With {cmd:off}, the program reports only the point estimates,
+The allowed arguments are {cmd:noinference}, {cmd:bootstrap} and {cmd:placebo}.
+With {cmd:noinference}, the program reports only the point estimates,
 while {cmd:bootstrap} and {cmd:placebo} correspond to 
 Algorithms 2 and 4 in Clarke et al. (2023).
 {p_end}
