@@ -472,12 +472,13 @@ else if "`vce'"=="placebo" {
     while `b'<=`B' {
         preserve
         qui {
+            tempvar ng
             keep if `touse'
             
             keep `1' `2' `3' `4' `tyear' `conts' `clustervar'
             sum `3'
-            bys `clustervar': egen N_g = sum(`3'==`=r(min)')
-            sum N_g
+            bys `clustervar': egen `ng' = sum(`3'==`=r(min)')
+            sum `ng'
             local N_g = r(mean)
             if r(sd) != 0 {
                 noi di as err "vce(placebo) can be used with cluster() only when each cluster contains the same number of groups."
