@@ -1,5 +1,5 @@
 *! sdid: Synthetic Difference-in-Differences
-*! Version 2.0.3 May 14, 2025
+*! Version 2.0.6 June 9, 2026
 *! Author: Pailañir Daniel, Clarke Damian, Ciccia Diego
 *! dpailanir@fen.uchile.cl, dclarke@fen.uchile.cl, diego.ciccia@kellogg.northwestern.edu
 
@@ -14,6 +14,7 @@ Versions
 2.0.3 May 14, 2025: Updates to incorporate additional covariate options
 2.0.4 July 31, 2025: Updates to incorporate cluster SE (bootstrap/placebo)
 2.0.5 Aug 8, 2025: Updates to incorporate cluster SE (jackknife)
+2.0.6 June 9, 2026: fixed bug with placebo inference (Github n. 102)
 */
 
 cap program drop sdid
@@ -474,7 +475,8 @@ else if "`vce'"=="placebo" {
             keep if `touse'
             
             keep `1' `2' `3' `4' `tyear' `conts' `clustervar'
-            bys `clustervar': egen N_g = sum(`3'==1)
+            sum `3'
+            bys `clustervar': egen N_g = sum(`3'==`=r(min)')
             sum N_g
             local N_g = r(mean)
             if r(sd) != 0 {

@@ -403,7 +403,7 @@ Daniel Pailañir, Universidad de Chile.
 Email {browse "mailto:dpailanir@fen.uchile.cl":dpailanir@fen.uchile.cl}
 Website {browse "https://daniel-pailanir.github.io/"}
 
-Diego Ciccia, Sciences Po.
+Diego Ciccia, Kellogg School of Management, Northwestern University.
 Email {browse "mailto:diego.ciccia@kellogg.northwestern.edu":diego.ciccia@kellogg.northwestern.edu}
 Website {browse "https://diegociccia.github.io/"}
 
