@@ -1,3 +1,8 @@
+*! sdid_event: Event-time estimates with synthetic difference-in-differences
+*! version 0.1.0 September 24, 2026
+*! Author: Ciccia Diego, Clarke Damian, Pailañir Daniel 
+*! diego.ciccia@kellogg.northwestern.edu, dclarke@fen.uchile.cl, dpailanir@fen.uchile.cl
+
 cap program drop sdid_event
 program define sdid_event, eclass
 syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) disag vce(string) brep(integer 50) method(string) covariates(string asis) vcov sb boot_ci combine(string) unstandardized cluster(string)]
@@ -45,7 +50,7 @@ syntax varlist(max = 4 min = 4) [if] [in] [, effects(integer 0) placebo(string) 
                     local scov_vars_opt 
                     foreach var of varlist `cov_vars_opt' {
                         egen z`var'_XX = std(`var') if `touse'
-                        local scov_vars_opt "`scov_vars_opt' z`var'"
+                        local scov_vars_opt "`scov_vars_opt' z`var'_XX"
                     }
                     local cov_vars_opt = "`scov_vars_opt'"
                 }
